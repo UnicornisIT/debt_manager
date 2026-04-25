@@ -1,5 +1,22 @@
 from datetime import datetime
+from flask_login import UserMixin
 from extensions import db
+
+
+class User(UserMixin, db.Model):
+    """Пользователь через Telegram"""
+    __tablename__ = 'users'
+
+    id = db.Column(db.Integer, primary_key=True)
+    telegram_id = db.Column(db.BigInteger, unique=True, nullable=False)
+    username = db.Column(db.String(80), nullable=True)
+    first_name = db.Column(db.String(100), nullable=True)
+    last_name = db.Column(db.String(100), nullable=True)
+    photo_url = db.Column(db.String(255), nullable=True)
+    auth_date = db.Column(db.DateTime, nullable=True)
+
+    def __repr__(self):
+        return f'<User {self.telegram_id}>'
 
 
 class Debt(db.Model):

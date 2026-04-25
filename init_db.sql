@@ -9,6 +9,18 @@ CREATE DATABASE IF NOT EXISTS debt_manager
 
 USE debt_manager;
 
+-- Таблица пользователей для Telegram-авторизации
+CREATE TABLE IF NOT EXISTS users (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    telegram_id BIGINT NOT NULL UNIQUE,
+    username VARCHAR(80) NULL,
+    first_name VARCHAR(100) NULL,
+    last_name VARCHAR(100) NULL,
+    photo_url VARCHAR(255) NULL,
+    auth_date DATETIME NULL,
+    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
 -- Таблица долгов
 CREATE TABLE IF NOT EXISTS debts (
     id              INT AUTO_INCREMENT PRIMARY KEY,

@@ -62,6 +62,8 @@ cp .env.example .env
 Откройте `.env` и заполните:
 ```
 SECRET_KEY=любая-случайная-строка
+TELEGRAM_BOT_TOKEN=ваш_токен_бота
+TELEGRAM_BOT_USERNAME=ваш_bot_username
 DB_HOST=localhost
 DB_PORT=3306
 DB_USER=root

@@ -1,23 +1,62 @@
 from flask import Flask, render_template, request, jsonify, redirect, url_for
+from flask_login import LoginManager, current_user, login_user, logout_user
 from datetime import datetime, date
 from decimal import Decimal, InvalidOperation
 from extensions import db
 from config import Config
+import hashlib
+import hmac
+import time
+
+
+login_manager = LoginManager()
 
 
 def create_app():
     app = Flask(__name__)
     app.config.from_object(Config)
     db.init_app(app)
+    login_manager.init_app(app)
+    login_manager.login_view = 'login'
     return app
 
 
 app = create_app()
 
 
+@login_manager.user_loader
+def load_user(user_id):
+    from models import User
+    if not user_id:
+        return None
+    return db.session.get(User, int(user_id))
+
+
+@login_manager.unauthorized_handler
+def unauthorized():
+    if request.path.startswith('/api/'):
+        return jsonify({'success': False, 'error': 'Требуется авторизация'}), 401
+    return redirect(url_for('login'))
+
+
+@app.before_request
+def require_login():
+    allowed_endpoints = {'static', 'login', 'telegram_login', 'logout'}
+    if request.endpoint in allowed_endpoints:
+        return
+    if not getattr(current_user, 'is_authenticated', False):
+        return unauthorized()
+
+
+@app.context_processor
+def inject_user():
+    return dict(current_user=current_user)
+
+
 # ──────────────────────────────────────────────────────────────
 # Вспомогательные функции
 # ──────────────────────────────────────────────────────────────
+
 
 def parse_decimal(value, field_name, required=True):
     """Безопасно парсит десятичное число из строки"""
@@ -44,6 +83,92 @@ def parse_date(value, field_name, required=False):
         return datetime.strptime(str(value).strip(), '%Y-%m-%d').date()
     except ValueError:
         raise ValueError(f"Поле '{field_name}' содержит некорректную дату (формат: ГГГГ-ММ-ДД)")
+
+
+def verify_telegram_login(data):
+    bot_token = app.config.get('TELEGRAM_BOT_TOKEN', '')
+    if not bot_token:
+        return False
+
+    auth_date = data.get('auth_date')
+    hash_value = data.get('hash')
+    if not auth_date or not hash_value:
+        return False
+
+    try:
+        auth_timestamp = int(auth_date)
+    except ValueError:
+        return False
+
+    if time.time() - auth_timestamp > 86400:
+        return False
+
+    check_data = []
+    for key, value in data.items():
+        if key == 'hash':
+            continue
+        check_data.append(f'{key}={value}')
+    check_data.sort()
+    data_check_string = '\n'.join(check_data)
+
+    secret_key = hashlib.sha256(bot_token.encode('utf-8')).digest()
+    expected_hash = hmac.new(secret_key, data_check_string.encode('utf-8'), hashlib.sha256).hexdigest()
+    return hmac.compare_digest(expected_hash, hash_value)
+
+
+# ──────────────────────────────────────────────────────────────
+# Аутентификация
+# ──────────────────────────────────────────────────────────────
+
+
+@app.route('/login')
+def login():
+    if current_user.is_authenticated:
+        return redirect(url_for('index'))
+    return render_template('login.html', bot_username=app.config.get('TELEGRAM_BOT_USERNAME', ''))
+
+
+@app.route('/telegram-login')
+def telegram_login():
+    data = request.args.to_dict()
+    bot_username = app.config.get('TELEGRAM_BOT_USERNAME', '')
+
+    if not verify_telegram_login(data):
+        return render_template('login.html', error='Ошибка авторизации через Telegram. Проверьте настройки бота.', bot_username=bot_username)
+
+    from models import User
+    telegram_id = data.get('id')
+    if not telegram_id:
+        return render_template('login.html', error='Неверные данные авторизации.', bot_username=bot_username)
+
+    user = User.query.filter_by(telegram_id=int(telegram_id)).first()
+    auth_date = datetime.utcfromtimestamp(int(data.get('auth_date', '0')))
+    if not user:
+        user = User(
+            telegram_id=int(telegram_id),
+            username=data.get('username'),
+            first_name=data.get('first_name'),
+            last_name=data.get('last_name'),
+            photo_url=data.get('photo_url'),
+            auth_date=auth_date,
+        )
+        db.session.add(user)
+    else:
+        user.username = data.get('username')
+        user.first_name = data.get('first_name')
+        user.last_name = data.get('last_name')
+        user.photo_url = data.get('photo_url')
+        user.auth_date = auth_date
+
+    db.session.commit()
+    login_user(user)
+    return redirect(url_for('index'))
+
+
+@app.route('/logout')
+def logout():
+    logout_user()
+    return redirect(url_for('login'))
 
 
 # ──────────────────────────────────────────────────────────────
