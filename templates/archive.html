@@ -1,0 +1,130 @@
+{% extends 'base.html' %}
+{% block title %}Архив — Менеджер долгов{% endblock %}
+
+{% block content %}
+<div class="d-flex align-items-center gap-3 mb-4">
+    <h1 class="page-title mb-0"><i class="bi bi-archive text-muted me-2"></i>Архив долгов</h1>
+    <span class="badge bg-secondary">{{ debts|length }}</span>
+</div>
+
+{% if debts %}
+<div class="row g-4">
+    {% for debt in debts %}
+    {% set paid_pct = ((1 - debt.remaining_amount / debt.total_amount) * 100) | round(1) if debt.total_amount > 0 else 100 %}
+    <div class="col-12 col-md-6 col-xl-4">
+        <div class="debt-card debt-card--archived" data-id="{{ debt.id }}">
+            <div class="archived-ribbon">В архиве</div>
+
+            <div class="debt-card__header">
+                <div>
+                    <div class="debt-card__bank">{{ debt.bank_name }}</div>
+                    <div class="debt-card__product">{{ debt.product_name }}</div>
+                </div>
+                <div class="debt-card__badge">
+                    {% if debt.debt_type == 'credit_card' %}
+                    <span class="badge-type badge-type--card"><i class="bi bi-credit-card"></i> Карта</span>
+                    {% else %}
+                    <span class="badge-type badge-type--split"><i class="bi bi-scissors"></i> Сплит</span>
+                    {% endif %}
+                </div>
+            </div>
+
+            <div class="debt-card__progress-wrap">
+                <div class="debt-card__progress-bar" style="width: {{ paid_pct }}%"></div>
+            </div>
+            <div class="debt-card__progress-label">
+                <span>Погашено {{ paid_pct }}%</span>
+                <span>{{ '{:,.0f}'.format(debt.remaining_amount).replace(',', ' ') }} ₽ осталось</span>
+            </div>
+
+            <div class="debt-card__amounts">
+                <div class="debt-card__amount-main">
+                    {{ '{:,.0f}'.format(debt.remaining_amount).replace(',', ' ') }} ₽
+                </div>
+                <div class="debt-card__amount-total">
+                    из {{ '{:,.0f}'.format(debt.total_amount).replace(',', ' ') }} ₽
+                </div>
+            </div>
+
+            <div class="debt-card__details">
+                <div class="debt-card__detail">
+                    <span class="detail-label"><i class="bi bi-calendar-check"></i> Добавлен</span>
+                    <span class="detail-value">{{ debt.created_at.strftime('%d.%m.%Y') if debt.created_at else '—' }}</span>
+                </div>
+                <div class="debt-card__detail">
+                    <span class="detail-label"><i class="bi bi-check-circle"></i> Архивирован</span>
+                    <span class="detail-value">{{ debt.updated_at.strftime('%d.%m.%Y') if debt.updated_at else '—' }}</span>
+                </div>
+                {% if debt.comment %}
+                <div class="debt-card__comment">
+                    <i class="bi bi-chat-left-text"></i> {{ debt.comment }}
+                </div>
+                {% endif %}
+            </div>
+
+            <div class="debt-card__actions">
+                <button class="btn btn-action btn-action--history"
+                    onclick="openHistoryModal({{ debt.id }}, '{{ debt.bank_name }} — {{ debt.product_name }}')"
+                    title="История платежей">
+                    <i class="bi bi-clock-history"></i> История
+                </button>
+                <button class="btn btn-action btn-action--restore"
+                    onclick="restoreDebt({{ debt.id }})"
+                    title="Восстановить">
+                    <i class="bi bi-arrow-counterclockwise"></i> Восстановить
+                </button>
+                <button class="btn btn-action btn-action--delete"
+                    onclick="deleteDebt({{ debt.id }})"
+                    title="Удалить навсегда">
+                    <i class="bi bi-trash3"></i>
+                </button>
+            </div>
+        </div>
+    </div>
+    {% endfor %}
+</div>
+
+{% else %}
+<div class="empty-state mt-5">
+    <div class="empty-state__icon">🗃️</div>
+    <h3>Архив пуст</h3>
+    <p class="text-muted">Сюда будут попадать закрытые и погашенные долги</p>
+    <a href="/" class="btn btn-primary">
+        <i class="bi bi-arrow-left me-2"></i>Вернуться на дашборд
+    </a>
+</div>
+{% endif %}
+
+{% endblock %}
+
+{% block extra_js %}
+<script>
+function restoreDebt(id) {
+    if (!confirm('Восстановить эту карточку в активные долги?')) return;
+    fetch(`/api/debts/${id}/restore`, { method: 'POST' })
+        .then(r => r.json())
+        .then(data => {
+            if (data.success) {
+                showToast('Карточка восстановлена', 'success');
+                setTimeout(() => location.reload(), 800);
+            } else {
+                showToast(data.error, 'danger');
+            }
+        });
+}
+
+function deleteDebt(id) {
+    if (!confirm('Удалить карточку навсегда? Это действие необратимо.')) return;
+    fetch(`/api/debts/${id}/delete`, { method: 'DELETE' })
+        .then(r => r.json())
+        .then(data => {
+            if (data.success) {
+                showToast('Карточка удалена', 'success');
+                setTimeout(() => location.reload(), 800);
+            } else {
+                showToast(data.error, 'danger');
+            }
+        });
+}
+</script>
+{% endblock %}

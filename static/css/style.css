@@ -1,0 +1,628 @@
+/* ============================================================
+   DEBT TRACKER — Основные стили
+   Шрифт: Onest | Палитра: глубокий синий + акценты
+============================================================ */
+
+:root {
+    --bg:         #0d1117;
+    --bg-card:    #161b22;
+    --bg-card-2:  #1c2230;
+    --border:     #21262d;
+    --border-hov: #30363d;
+    --text:       #e6edf3;
+    --text-muted: #8b949e;
+    --text-dim:   #484f58;
+    --primary:    #2f81f7;
+    --primary-dk: #1f6feb;
+    --success:    #3fb950;
+    --warning:    #d29922;
+    --danger:     #f85149;
+    --orange:     #e3693b;
+    --split-clr:  #bc8cff;
+    --card-radius: 14px;
+    --transition:  0.18s ease;
+}
+
+:root[data-theme="light"], html[data-theme="light"] {
+    --bg:          #f4f6fb;
+    --bg-card:     #ffffff;
+    --bg-card-2:   #f8fafc;
+    --border:      #d9e2ec;
+    --border-hov:  #c1cdd9;
+    --text:        #111827;
+    --text-muted:  #64748b;
+    --text-dim:    #475569;
+    --primary:     #2563eb;
+    --primary-dk:  #1d4ed8;
+    --success:     #16a34a;
+    --warning:     #d97706;
+    --danger:      #dc2626;
+    --orange:      #ea580c;
+    --split-clr:   #8b5cf6;
+}
+
+html[data-theme="light"], :root[data-theme="light"] {
+    background: var(--bg);
+    color: var(--text);
+}
+
+html[data-theme="light"] body, :root[data-theme="light"] body {
+    background: var(--bg);
+    color: var(--text);
+}
+
+html[data-theme="light"] .navbar,
+html[data-theme="light"] .modal-content,
+html[data-theme="light"] .dropdown-menu,
+html[data-theme="light"] .toast,
+html[data-theme="light"] .alert,
+html[data-theme="light"] .form-control,
+html[data-theme="light"] .form-select {
+    color: var(--text) !important;
+}
+
+html[data-theme="light"] .navbar {
+    background: rgba(255, 255, 255, 0.92);
+    border-bottom: 1px solid var(--border);
+}
+
+html[data-theme="light"] .navbar .nav-link {
+    color: var(--text-muted) !important;
+}
+
+html[data-theme="light"] .navbar .nav-link:hover,
+html[data-theme="light"] .navbar .nav-link.active {
+    color: var(--text) !important;
+    background: var(--bg-card-2);
+}
+
+html[data-theme="light"] .brand-text,
+html[data-theme="light"] .brand-icon {
+    color: var(--text) !important;
+}
+
+html[data-theme="light"] .btn-close {
+    filter: invert(0) grayscale(0);
+}
+
+html[data-theme="light"] .toast {
+    background: var(--bg-card);
+    border-color: var(--border);
+}
+
+html[data-theme="light"] .history-table th,
+html[data-theme="light"] .history-table td {
+    color: var(--text) !important;
+}
+
+html[data-theme="light"] .form-select option {
+    background: var(--bg-card-2);
+    color: var(--text);
+}
+
+/* ── Reset & Base ── */
+* { box-sizing: border-box; }
+
+body {
+    font-family: 'Onest', system-ui, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+    line-height: 1.6;
+}
+
+/* ── Bootstrap dark-mode overrides ── */
+body, .navbar, .modal-content, .dropdown-menu, .toast, .alert, .table, .table th, .table td, .form-control, .form-select, .form-label, .form-text, .dropdown-item, .page-link, .list-group-item {
+    color: var(--text);
+}
+
+a {
+    color: var(--primary);
+}
+
+a:hover, a:focus {
+    color: var(--primary-dk);
+}
+
+.table {
+    background: transparent;
+}
+
+.table th, .table td {
+    border-color: var(--border);
+}
+
+.dropdown-menu {
+    background: var(--bg-card);
+    border-color: var(--border);
+}
+
+/* ── Navbar ── */
+.navbar {
+    background: rgba(13, 17, 23, 0.95);
+    backdrop-filter: blur(12px);
+    border-bottom: 1px solid var(--border);
+    padding: 0.75rem 0;
+    position: sticky;
+    top: 0;
+    z-index: 1000;
+}
+.brand-icon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 34px; height: 34px;
+    background: var(--primary);
+    border-radius: 8px;
+    font-weight: 800;
+    font-size: 1.1rem;
+    margin-right: 8px;
+    color: #fff;
+}
+.brand-text {
+    font-weight: 700;
+    font-size: 1.15rem;
+    color: var(--text);
+    letter-spacing: -0.02em;
+}
+.nav-link {
+    color: var(--text-muted) !important;
+    font-weight: 500;
+    border-radius: 8px;
+    padding: 6px 12px !important;
+    transition: var(--transition);
+}
+.nav-link:hover, .nav-link.active {
+    color: var(--text) !important;
+    background: var(--bg-card-2);
+}
+
+/* ── Buttons ── */
+.btn-primary {
+    background: var(--primary);
+    border-color: var(--primary);
+    font-weight: 600;
+    border-radius: 8px;
+    transition: var(--transition);
+}
+.btn-primary:hover { background: var(--primary-dk); border-color: var(--primary-dk); }
+.btn-success {
+    background: var(--success); border-color: var(--success);
+    font-weight: 600; border-radius: 8px;
+}
+.btn-ghost {
+    background: transparent;
+    border: 1px solid var(--border);
+    color: var(--text-muted);
+    border-radius: 8px;
+    font-weight: 500;
+}
+.btn-ghost:hover { background: var(--bg-card-2); color: var(--text); border-color: var(--border-hov); }
+
+.btn-theme {
+    min-width: 42px;
+    padding: 6px 10px;
+    font-size: 0.9rem;
+    color: var(--text);
+}
+
+/* ── Page title ── */
+.page-title {
+    font-size: 1.6rem;
+    font-weight: 700;
+    letter-spacing: -0.03em;
+}
+
+/* ══════════════════════════════════════════════════════════
+   СВОДНАЯ ПАНЕЛЬ
+══════════════════════════════════════════════════════════ */
+.summary-bar {}
+.summary-card {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: var(--card-radius);
+    padding: 1.2rem 1.4rem;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    transition: var(--transition);
+    position: relative;
+    overflow: hidden;
+}
+.summary-card::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 2px;
+    background: var(--primary);
+    opacity: 0.6;
+}
+.summary-card--danger::before { background: var(--danger); }
+.summary-card--warning::before { background: var(--warning); }
+.summary-card--muted::before { background: var(--text-dim); }
+
+.summary-icon { font-size: 1.4rem; color: var(--text-muted); margin-bottom: 2px; }
+.summary-value { font-size: 1.5rem; font-weight: 700; letter-spacing: -0.03em; line-height: 1.2; }
+.summary-label { font-size: 0.78rem; color: var(--text-muted); font-weight: 500; text-transform: uppercase; letter-spacing: 0.04em; }
+
+/* ══════════════════════════════════════════════════════════
+   ФИЛЬТРЫ
+══════════════════════════════════════════════════════════ */
+.filters-bar {}
+.filter-search {
+    position: relative;
+}
+.filter-search i {
+    position: absolute;
+    left: 12px; top: 50%;
+    transform: translateY(-50%);
+    color: var(--text-muted);
+    font-size: 0.9rem;
+    pointer-events: none;
+}
+.filter-search .form-control {
+    padding-left: 36px;
+}
+.btn-filter {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    color: var(--text-muted);
+    font-weight: 500;
+    font-size: 0.88rem;
+    padding: 6px 14px;
+    transition: var(--transition);
+}
+.btn-filter:hover { background: var(--bg-card-2); color: var(--text); border-color: var(--border-hov); }
+.btn-filter.active {
+    background: var(--primary);
+    border-color: var(--primary);
+    color: #fff;
+}
+.btn-group.filter-type-btns .btn-filter:first-child { border-radius: 8px 0 0 8px; }
+.btn-group.filter-type-btns .btn-filter:last-child { border-radius: 0 8px 8px 0; }
+.btn-group.filter-type-btns .btn-filter:not(:first-child) { border-left: none; }
+
+/* ══════════════════════════════════════════════════════════
+   КАРТОЧКИ ДОЛГОВ
+══════════════════════════════════════════════════════════ */
+.debt-card {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: var(--card-radius);
+    padding: 1.4rem;
+    transition: transform var(--transition), box-shadow var(--transition), border-color var(--transition);
+    position: relative;
+    overflow: hidden;
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    gap: 0;
+}
+.debt-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 32px rgba(0,0,0,0.35);
+    border-color: var(--border-hov);
+}
+/* Цветная полоска сверху по статусу */
+.debt-card::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 3px;
+    border-radius: var(--card-radius) var(--card-radius) 0 0;
+}
+.debt-card--ok::before     { background: var(--success); }
+.debt-card--warning::before { background: var(--warning); }
+.debt-card--urgent::before  { background: var(--orange); }
+.debt-card--overdue::before { background: var(--danger); }
+.debt-card--archived::before { background: var(--text-dim); }
+.debt-card--archived { opacity: 0.82; }
+
+/* Header */
+.debt-card__header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 8px;
+    margin-bottom: 1rem;
+    padding-top: 4px;
+}
+.debt-card__bank {
+    font-size: 1.05rem;
+    font-weight: 700;
+    letter-spacing: -0.02em;
+    line-height: 1.2;
+}
+.debt-card__product {
+    font-size: 0.82rem;
+    color: var(--text-muted);
+    margin-top: 2px;
+}
+
+/* Badges */
+.badge-type {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 3px 9px;
+    border-radius: 20px;
+    font-size: 0.75rem;
+    font-weight: 600;
+    white-space: nowrap;
+}
+.badge-type--card  { background: rgba(47,129,247,0.15); color: var(--primary); border: 1px solid rgba(47,129,247,0.3); }
+.badge-type--split { background: rgba(188,140,255,0.15); color: var(--split-clr); border: 1px solid rgba(188,140,255,0.3); }
+
+/* Progress */
+.debt-card__progress-wrap {
+    height: 5px;
+    background: var(--border);
+    border-radius: 3px;
+    overflow: hidden;
+    margin-bottom: 4px;
+}
+.debt-card__progress-bar {
+    height: 100%;
+    background: linear-gradient(90deg, var(--primary), var(--success));
+    border-radius: 3px;
+    transition: width 0.5s ease;
+    min-width: 2px;
+}
+.debt-card__progress-label {
+    display: flex;
+    justify-content: space-between;
+    font-size: 0.75rem;
+    color: var(--text-muted);
+    margin-bottom: 0.9rem;
+}
+
+/* Суммы */
+.debt-card__amounts {
+    margin-bottom: 0.9rem;
+}
+.debt-card__amount-main {
+    font-size: 1.65rem;
+    font-weight: 800;
+    letter-spacing: -0.04em;
+    line-height: 1.1;
+}
+.debt-card__amount-total {
+    font-size: 0.8rem;
+    color: var(--text-muted);
+    margin-top: 1px;
+}
+
+/* Details */
+.debt-card__details {
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+    margin-bottom: 1rem;
+    flex: 1;
+}
+.debt-card__detail {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    gap: 8px;
+    font-size: 0.84rem;
+}
+.detail-label {
+    color: var(--text-muted);
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    white-space: nowrap;
+}
+.detail-value {
+    font-weight: 500;
+    text-align: right;
+}
+.text-orange { color: var(--orange); }
+.text-warning-dark { color: var(--warning); }
+
+.debt-card__comment {
+    font-size: 0.8rem;
+    color: var(--text-dim);
+    font-style: italic;
+    margin-top: 4px;
+    padding-top: 6px;
+    border-top: 1px solid var(--border);
+}
+
+/* Action buttons */
+.debt-card__actions {
+    display: flex;
+    gap: 6px;
+    flex-wrap: wrap;
+    margin-top: auto;
+    padding-top: 0.9rem;
+    border-top: 1px solid var(--border);
+}
+.btn-action {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 5px 10px;
+    border-radius: 8px;
+    font-size: 0.8rem;
+    font-weight: 600;
+    border: 1px solid transparent;
+    cursor: pointer;
+    transition: var(--transition);
+    white-space: nowrap;
+}
+.btn-action--pay {
+    background: rgba(63,185,80,0.12);
+    color: var(--success);
+    border-color: rgba(63,185,80,0.25);
+    flex: 1;
+}
+.btn-action--pay:hover { background: var(--success); color: #fff; }
+.btn-action--edit {
+    background: rgba(47,129,247,0.1);
+    color: var(--primary);
+    border-color: rgba(47,129,247,0.2);
+}
+.btn-action--edit:hover { background: var(--primary); color: #fff; }
+.btn-action--calendar {
+    background: rgba(188,140,255,0.1);
+    color: var(--split-clr);
+    border-color: rgba(188,140,255,0.2);
+}
+.btn-action--calendar:hover { background: var(--split-clr); color: #fff; }
+.btn-action--history {
+    background: rgba(139,148,158,0.1);
+    color: var(--text-muted);
+    border-color: rgba(139,148,158,0.2);
+}
+.btn-action--history:hover { background: var(--bg-card-2); color: var(--text); }
+.btn-action--archive {
+    background: rgba(210,153,34,0.1);
+    color: var(--warning);
+    border-color: rgba(210,153,34,0.2);
+}
+.btn-action--archive:hover { background: var(--warning); color: #000; }
+.btn-action--restore {
+    background: rgba(63,185,80,0.1);
+    color: var(--success);
+    border-color: rgba(63,185,80,0.2);
+    flex: 1;
+}
+.btn-action--restore:hover { background: var(--success); color: #fff; }
+.btn-action--delete {
+    background: rgba(248,81,73,0.1);
+    color: var(--danger);
+    border-color: rgba(248,81,73,0.2);
+}
+.btn-action--delete:hover { background: var(--danger); color: #fff; }
+
+/* Archived ribbon */
+.archived-ribbon {
+    position: absolute;
+    top: 14px; right: -24px;
+    background: var(--text-dim);
+    color: var(--bg);
+    font-size: 0.68rem;
+    font-weight: 700;
+    padding: 2px 28px;
+    transform: rotate(35deg);
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+}
+
+/* ══════════════════════════════════════════════════════════
+   ПУСТОЕ СОСТОЯНИЕ
+══════════════════════════════════════════════════════════ */
+.empty-state {
+    text-align: center;
+    padding: 4rem 1rem;
+    color: var(--text-muted);
+}
+.empty-state__icon { font-size: 3.5rem; margin-bottom: 1rem; }
+.empty-state h3 { font-size: 1.3rem; font-weight: 700; color: var(--text); margin-bottom: 0.5rem; }
+
+/* ══════════════════════════════════════════════════════════
+   ALERT / УВЕДОМЛЕНИЕ О ПРОСРОЧКЕ
+══════════════════════════════════════════════════════════ */
+.alert-overdue {
+    background: rgba(248,81,73,0.1);
+    border: 1px solid rgba(248,81,73,0.3);
+    color: #ffa3a0;
+    border-radius: 10px;
+}
+
+/* ══════════════════════════════════════════════════════════
+   МОДАЛКИ
+══════════════════════════════════════════════════════════ */
+.modal-content {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: var(--card-radius);
+    color: var(--text);
+}
+.modal-header {
+    border-bottom: 1px solid var(--border);
+    padding: 1.2rem 1.4rem;
+}
+.modal-footer {
+    border-top: 1px solid var(--border);
+    padding: 1rem 1.4rem;
+}
+.modal-title { font-weight: 700; letter-spacing: -0.02em; }
+.btn-close { filter: invert(1) grayscale(1); }
+
+/* Form controls in dark theme */
+.form-control, .form-select {
+    background: var(--bg-card-2);
+    border: 1px solid var(--border);
+    color: var(--text) !important;
+    border-radius: 8px;
+    font-family: inherit;
+    transition: var(--transition);
+}
+.form-control:focus, .form-select:focus {
+    background: var(--bg-card-2);
+    border-color: var(--primary);
+    color: var(--text) !important;
+    box-shadow: 0 0 0 3px rgba(47,129,247,0.15);
+}
+.modal-content .form-control,
+.modal-content .form-select,
+.modal-content .form-label,
+.modal-content .form-text {
+    color: var(--text) !important;
+}
+.modal-content .form-control::placeholder,
+.modal-content .form-select option {
+    color: var(--text-dim);
+}
+.form-select option { background: var(--bg-card-2); }
+
+/* ── История платежей в модалке ── */
+.history-table {
+    width: 100%;
+    font-size: 0.88rem;
+}
+.history-table th {
+    background: var(--bg-card-2);
+    color: var(--text-muted);
+    font-weight: 600;
+    font-size: 0.78rem;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    padding: 10px 16px;
+    border-bottom: 1px solid var(--border);
+}
+.history-table td {
+    padding: 10px 16px;
+    border-bottom: 1px solid var(--border);
+    vertical-align: middle;
+}
+.history-table tr:last-child td { border-bottom: none; }
+.history-table tr:hover td { background: var(--bg-card-2); }
+.history-empty { padding: 2rem; text-align: center; color: var(--text-muted); }
+
+/* ── Toast ── */
+.toast {
+    background: #1e2730;
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    color: var(--text);
+    min-width: 280px;
+}
+.toast.toast-success { border-left: 3px solid var(--success); }
+.toast.toast-danger  { border-left: 3px solid var(--danger); }
+.toast.toast-warning { border-left: 3px solid var(--warning); }
+
+/* ══════════════════════════════════════════════════════════
+   АДАПТИВНОСТЬ
+══════════════════════════════════════════════════════════ */
+@media (max-width: 576px) {
+    .summary-value { font-size: 1.2rem; }
+    .debt-card__amount-main { font-size: 1.3rem; }
+    .filters-bar { flex-direction: column; align-items: stretch !important; }
+    .filter-search { max-width: 100% !important; }
+    .btn-group.filter-type-btns { width: 100%; }
+    .btn-filter { flex: 1; justify-content: center; }
+}

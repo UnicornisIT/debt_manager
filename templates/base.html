@@ -1,0 +1,218 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}Менеджер долгов{% endblock %}</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Onest:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css" rel="stylesheet">
+    <link href="{{ url_for('static', filename='css/style.css') }}" rel="stylesheet">
+</head>
+<body>
+
+<!-- Навигация -->
+<nav class="navbar navbar-expand-lg">
+    <div class="container-fluid px-4">
+        <a class="navbar-brand" href="/">
+            <span class="brand-icon">₽</span>
+            <span class="brand-text">ДолгТрекер</span>
+        </a>
+        <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
+            <span class="navbar-toggler-icon"></span>
+        </button>
+        <div class="collapse navbar-collapse" id="navbarNav">
+            <ul class="navbar-nav ms-auto align-items-center gap-1">
+                <li class="nav-item">
+                    <a class="nav-link {% if request.path == '/' %}active{% endif %}" href="/">
+                        <i class="bi bi-grid-3x3-gap me-1"></i>Дашборд
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link {% if request.path == '/archive' %}active{% endif %}" href="/archive">
+                        <i class="bi bi-archive me-1"></i>Архив
+                    </a>
+                </li>
+                <li class="nav-item ms-2">
+                    <button class="btn btn-primary btn-sm" onclick="openAddModal()">
+                        <i class="bi bi-plus-lg me-1"></i>Добавить долг
+                    </button>
+                </li>
+                <li class="nav-item ms-2">
+                    <button id="themeToggleBtn" class="btn btn-ghost btn-theme btn-sm" type="button" onclick="toggleTheme()" title="Сменить тему">
+                        <i class="bi bi-moon-stars-fill"></i>
+                    </button>
+                </li>
+            </ul>
+        </div>
+    </div>
+</nav>
+
+<!-- Основной контент -->
+<main class="container-fluid px-4 py-4">
+    {% block content %}{% endblock %}
+</main>
+
+<!-- Toast уведомления -->
+<div class="toast-container position-fixed bottom-0 end-0 p-3" style="z-index:9999">
+    <div id="mainToast" class="toast align-items-center border-0" role="alert">
+        <div class="d-flex">
+            <div class="toast-body fw-medium" id="toastMessage"></div>
+            <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast"></button>
+        </div>
+    </div>
+</div>
+
+<!-- ══════════════════════════════════════════════════════════
+     МОДАЛЬНОЕ ОКНО: Добавление / Редактирование долга
+═══════════════════════════════════════════════════════════ -->
+<div class="modal fade" id="debtModal" tabindex="-1">
+    <div class="modal-dialog modal-lg modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="debtModalTitle">Новый долг</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div id="debtFormError" class="alert alert-danger d-none"></div>
+                <div class="row g-3">
+                    <div class="col-md-6">
+                        <label class="form-label">Банк <span class="text-danger">*</span></label>
+                        <input type="text" class="form-control" id="f_bank_name" placeholder="Тинькофф, Сбербанк...">
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label">Тип долга <span class="text-danger">*</span></label>
+                        <select class="form-select" id="f_debt_type">
+                            <option value="">— выберите —</option>
+                            <option value="credit_card">Кредитная карта</option>
+                            <option value="split">Сплит / Рассрочка</option>
+                        </select>
+                    </div>
+                    <div class="col-12">
+                        <label class="form-label">Название продукта/карты <span class="text-danger">*</span></label>
+                        <input type="text" class="form-control" id="f_product_name" placeholder="Тинькофф Платинум, СберСплит...">
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label">Общая сумма долга (₽) <span class="text-danger">*</span></label>
+                        <input type="number" class="form-control" id="f_total_amount" min="0" step="0.01" placeholder="0.00">
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label">Текущий остаток (₽) <span class="text-danger">*</span></label>
+                        <input type="number" class="form-control" id="f_remaining_amount" min="0" step="0.01" placeholder="0.00">
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label">Минимальный платеж (₽)</label>
+                        <input type="number" class="form-control" id="f_minimum_payment" min="0" step="0.01" placeholder="0.00">
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label">Процентная ставка (%/год)</label>
+                        <input type="number" class="form-control" id="f_interest_rate" min="0" max="200" step="0.1" placeholder="0.0">
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label">Дата следующего платежа</label>
+                        <input type="date" class="form-control" id="f_next_payment_date">
+                    </div>
+                    <div class="col-12">
+                        <label class="form-label">Комментарий</label>
+                        <textarea class="form-control" id="f_comment" rows="2" placeholder="Заметки..."></textarea>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-ghost" data-bs-dismiss="modal">Отмена</button>
+                <button type="button" class="btn btn-primary" id="debtSaveBtn" onclick="saveDebt()">
+                    <i class="bi bi-check-lg me-1"></i>Сохранить
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- ══════════════════════════════════════════════════════════
+     МОДАЛЬНОЕ ОКНО: Внесение платежа
+═══════════════════════════════════════════════════════════ -->
+<div class="modal fade" id="paymentModal" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Внести платеж</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div id="paymentFormError" class="alert alert-danger d-none"></div>
+                <p class="text-muted mb-3">
+                    <strong id="pm_name"></strong><br>
+                    <small>Остаток: <span class="fw-semibold text-primary" id="pm_remaining"></span></small>
+                </p>
+                <div class="row g-3">
+                    <div class="col-12">
+                        <label class="form-label">Сумма платежа (₽) <span class="text-danger">*</span></label>
+                        <input type="number" class="form-control form-control-lg" id="pm_amount" min="0.01" step="0.01" placeholder="0.00">
+                        <div class="form-text">Минимальный платеж: <span id="pm_min_payment">—</span></div>
+                    </div>
+                    <div class="col-12">
+                        <label class="form-label">Дата платежа</label>
+                        <input type="date" class="form-control" id="pm_date">
+                    </div>
+                    <div class="col-12">
+                        <label class="form-label">Комментарий</label>
+                        <input type="text" class="form-control" id="pm_comment" placeholder="Необязательно">
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-ghost" data-bs-dismiss="modal">Отмена</button>
+                <button type="button" class="btn btn-success" onclick="submitPayment()">
+                    <i class="bi bi-check-circle me-1"></i>Внести платеж
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- ══════════════════════════════════════════════════════════
+     МОДАЛЬНОЕ ОКНО: История платежей
+═══════════════════════════════════════════════════════════ -->
+<div class="modal fade" id="historyModal" tabindex="-1">
+    <div class="modal-dialog modal-lg modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">История платежей — <span id="hist_name"></span></h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body p-0">
+                <div id="historyContent"></div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- ══════════════════════════════════════════════════════════
+     МОДАЛЬНОЕ ОКНО: Подтверждение архивации
+═══════════════════════════════════════════════════════════ -->
+<div class="modal fade" id="archiveConfirmModal" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered modal-sm">
+        <div class="modal-content">
+            <div class="modal-header border-0 pb-0">
+                <h5 class="modal-title">🎉 Долг погашен!</h5>
+            </div>
+            <div class="modal-body">
+                <p class="text-muted">Остаток долга стал равен нулю. Перенести карточку в архив?</p>
+            </div>
+            <div class="modal-footer border-0 pt-0">
+                <button type="button" class="btn btn-ghost btn-sm" data-bs-dismiss="modal">Оставить</button>
+                <button type="button" class="btn btn-primary btn-sm" id="confirmArchiveBtn">
+                    <i class="bi bi-archive me-1"></i>В архив
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+<script src="{{ url_for('static', filename='js/app.js') }}"></script>
+{% block extra_js %}{% endblock %}
+</body>
+</html>
