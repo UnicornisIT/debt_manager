@@ -179,7 +179,7 @@ def logout():
 def index():
     """Главный дашборд"""
     from models import Debt
-    active_debts = Debt.query.filter_by(status='active').order_by(db.case((Debt.next_payment_date.is_(None), 1), else_=0), Debt.next_payment_date.asc()).all()
+    active_debts = Debt.query.filter_by(status='active', user_id=current_user.id).order_by(db.case((Debt.next_payment_date.is_(None), 1), else_=0), Debt.next_payment_date.asc()).all()
     
     # Сводная статистика
     total_remaining = sum(float(d.remaining_amount) for d in active_debts)
@@ -204,11 +204,16 @@ def index():
     )
 
 
+def get_user_debt(debt_id):
+    from models import Debt
+    return Debt.query.filter_by(id=debt_id, user_id=current_user.id).first()
+
+
 @app.route('/archive')
 def archive():
     """Страница архива"""
     from models import Debt
-    archived_debts = Debt.query.filter_by(status='archived').order_by(Debt.updated_at.desc()).all()
+    archived_debts = Debt.query.filter_by(status='archived', user_id=current_user.id).order_by(Debt.updated_at.desc()).all()
     return render_template('archive.html', debts=archived_debts)
 
 
@@ -224,7 +229,7 @@ def api_get_debts():
     bank_filter = request.args.get('bank', '').strip()
     type_filter = request.args.get('type', '').strip()
 
-    query = Debt.query.filter_by(status=status)
+    query = Debt.query.filter_by(status=status, user_id=current_user.id)
     if bank_filter:
         query = query.filter(Debt.bank_name.ilike(f'%{bank_filter}%'))
     if type_filter:
@@ -266,6 +271,7 @@ def api_create_debt():
             raise ValueError("Остаток долга не может превышать общую сумму")
 
         debt = Debt(
+            user_id=current_user.id,
             bank_name=bank_name,
             debt_type=debt_type,
             product_name=product_name,
@@ -291,8 +297,7 @@ def api_create_debt():
 @app.route('/api/debts/<int:debt_id>', methods=['GET'])
 def api_get_debt(debt_id):
     """Получить один долг"""
-    from models import Debt
-    debt = db.session.get(Debt, debt_id)
+    debt = get_user_debt(debt_id)
     if not debt:
         return jsonify({'success': False, 'error': 'Долг не найден'}), 404
     return jsonify({'success': True, 'debt': debt.to_dict()})
@@ -301,8 +306,7 @@ def api_get_debt(debt_id):
 @app.route('/api/debts/<int:debt_id>', methods=['PUT'])
 def api_update_debt(debt_id):
     """Обновить долг"""
-    from models import Debt
-    debt = db.session.get(Debt, debt_id)
+    debt = get_user_debt(debt_id)
     if not debt:
         return jsonify({'success': False, 'error': 'Долг не найден'}), 404
 
@@ -358,8 +362,7 @@ def api_update_debt(debt_id):
 @app.route('/api/debts/<int:debt_id>/archive', methods=['POST'])
 def api_archive_debt(debt_id):
     """Архивировать долг"""
-    from models import Debt
-    debt = db.session.get(Debt, debt_id)
+    debt = get_user_debt(debt_id)
     if not debt:
         return jsonify({'success': False, 'error': 'Долг не найден'}), 404
 
@@ -372,8 +375,7 @@ def api_archive_debt(debt_id):
 @app.route('/api/debts/<int:debt_id>/restore', methods=['POST'])
 def api_restore_debt(debt_id):
     """Восстановить долг из архива"""
-    from models import Debt
-    debt = db.session.get(Debt, debt_id)
+    debt = get_user_debt(debt_id)
     if not debt:
         return jsonify({'success': False, 'error': 'Долг не найден'}), 404
 
@@ -386,8 +388,7 @@ def api_restore_debt(debt_id):
 @app.route('/api/debts/<int:debt_id>/delete', methods=['DELETE'])
 def api_delete_debt(debt_id):
     """Удалить долг полностью"""
-    from models import Debt
-    debt = db.session.get(Debt, debt_id)
+    debt = get_user_debt(debt_id)
     if not debt:
         return jsonify({'success': False, 'error': 'Долг не найден'}), 404
 
@@ -403,8 +404,8 @@ def api_delete_debt(debt_id):
 @app.route('/api/debts/<int:debt_id>/payments', methods=['GET'])
 def api_get_payments(debt_id):
     """История платежей по долгу"""
-    from models import Debt, Payment
-    debt = db.session.get(Debt, debt_id)
+    from models import Payment
+    debt = get_user_debt(debt_id)
     if not debt:
         return jsonify({'success': False, 'error': 'Долг не найден'}), 404
 
@@ -419,8 +420,8 @@ def api_get_payments(debt_id):
 @app.route('/api/debts/<int:debt_id>/payments', methods=['POST'])
 def api_add_payment(debt_id):
     """Внести платеж"""
-    from models import Debt, Payment
-    debt = db.session.get(Debt, debt_id)
+    from models import Payment
+    debt = get_user_debt(debt_id)
     if not debt:
         return jsonify({'success': False, 'error': 'Долг не найден'}), 404
     if debt.status != 'active':
@@ -486,7 +487,7 @@ def init_db_route():
     db.create_all()
     
     # Добавляем тестовые данные только если БД пустая
-    if Debt.query.count() == 0:
+    if Debt.query.filter_by(user_id=current_user.id).count() == 0:
         seed_data()
     
     return jsonify({'success': True, 'message': 'База данных инициализирована'})
@@ -499,6 +500,7 @@ def seed_data():
 
     debts = [
         Debt(
+            user_id=current_user.id,
             bank_name='Тинькофф',
             debt_type='credit_card',
             product_name='Тинькофф Платинум',

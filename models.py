@@ -15,6 +15,8 @@ class User(UserMixin, db.Model):
     photo_url = db.Column(db.String(255), nullable=True)
     auth_date = db.Column(db.DateTime, nullable=True)
 
+    debts = db.relationship('Debt', back_populates='user', lazy=True, cascade='all, delete-orphan')
+
     def __repr__(self):
         return f'<User {self.telegram_id}>'
 
@@ -35,9 +37,10 @@ class Debt(db.Model):
     comment = db.Column(db.Text, nullable=True)
     status = db.Column(db.Enum('active', 'archived'), nullable=False, default='active')
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
-    # Связь с платежами
+    user = db.relationship('User', back_populates='debts')
     payments = db.relationship('Payment', backref='debt', lazy=True, cascade='all, delete-orphan')
 
     def to_dict(self):

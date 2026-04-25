@@ -24,6 +24,7 @@ CREATE TABLE IF NOT EXISTS users (
 -- Таблица долгов
 CREATE TABLE IF NOT EXISTS debts (
     id              INT AUTO_INCREMENT PRIMARY KEY,
+    user_id         INT             NOT NULL COMMENT 'ID пользователя',
     bank_name       VARCHAR(100)    NOT NULL COMMENT 'Название банка',
     debt_type       ENUM('credit_card', 'split') NOT NULL COMMENT 'Тип: кредитная карта или сплит',
     product_name    VARCHAR(150)    NOT NULL COMMENT 'Название продукта/карты',
@@ -37,6 +38,8 @@ CREATE TABLE IF NOT EXISTS debts (
     created_at      DATETIME        NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at      DATETIME        NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     
+    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+    INDEX idx_user_id (user_id),
     INDEX idx_status (status),
     INDEX idx_next_payment (next_payment_date),
     INDEX idx_bank (bank_name)
