@@ -191,7 +191,7 @@
                         {% if days is not none %}
                             {% if days < 0 %}text-danger fw-semibold
                             {% elif days <= 3 %}text-orange fw-semibold
-                            {% elif days <= 7 %}text-warning-dark{% endif %}
+                            {% elif days <= 7 %}text-warning-strong{% endif %}
                         {% endif %}
                     ">
                         {% if debt.next_payment_date %}

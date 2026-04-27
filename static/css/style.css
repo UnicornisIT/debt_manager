@@ -456,7 +456,7 @@ a:hover, a:focus {
     text-align: right;
 }
 .text-orange { color: var(--orange); }
-.text-warning-dark { color: var(--warning); }
+.text-warning-strong { color: var(--warning); }
 
 .debt-card__comment {
     font-size: 0.8rem;
@@ -589,7 +589,7 @@ a:hover, a:focus {
 .modal-title { font-weight: 700; letter-spacing: -0.02em; }
 .btn-close { filter: invert(1) grayscale(1); }
 
-/* Form controls in dark theme */
+/* Form controls */
 .form-control, .form-select {
     background: var(--bg-card-2);
     border: 1px solid var(--border);
