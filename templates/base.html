@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="ru">
+<html lang="ru" data-theme="light">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -18,16 +18,33 @@
     <div class="container-fluid px-4">
         <a class="navbar-brand" href="/">
             <span class="brand-icon">₽</span>
-            <span class="brand-text">ДолгТрекер</span>
+            <span class="brand-text">{{ app_name }}</span>
         </a>
         <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
             <span class="navbar-toggler-icon"></span>
         </button>
         <div class="collapse navbar-collapse" id="navbarNav">
             <ul class="navbar-nav ms-auto align-items-center gap-1">
+                {% set show_user_nav = not (current_user.is_authenticated and current_user.is_admin and request.path.startswith('/admin')) %}
+                {% if show_user_nav %}
                 <li class="nav-item">
                     <a class="nav-link {% if request.path == '/' %}active{% endif %}" href="/">
                         <i class="bi bi-grid-3x3-gap me-1"></i>Дашборд
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link {% if request.path == '/incomes' %}active{% endif %}" href="/incomes">
+                        <i class="bi bi-wallet2 me-1"></i>Доходы
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link {% if request.path == '/expenses' %}active{% endif %}" href="/expenses">
+                        <i class="bi bi-basket3 me-1"></i>Расходы
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link {% if request.path == '/finance' %}active{% endif %}" href="/finance">
+                        <i class="bi bi-info-circle me-1"></i>Информация о финансах
                     </a>
                 </li>
                 <li class="nav-item">
@@ -35,16 +52,28 @@
                         <i class="bi bi-archive me-1"></i>Архив
                     </a>
                 </li>
+                {% endif %}
+                {% if current_user.is_authenticated and current_user.is_admin %}
+                <li class="nav-item">
+                    <a class="nav-link {% if request.path.startswith('/admin') %}active{% endif %}" href="{{ url_for('admin_dashboard') }}">
+                        <i class="bi bi-shield-lock me-1"></i>Админка
+                    </a>
+                </li>
+                {% endif %}
+                {% if show_user_nav %}
                 <li class="nav-item ms-2">
                     <button class="btn btn-primary btn-sm" onclick="openAddModal()">
                         <i class="bi bi-plus-lg me-1"></i>Добавить долг
                     </button>
                 </li>
+                {% endif %}
+                {% if not hide_theme_toggle %}
                 <li class="nav-item ms-2">
                     <button id="themeToggleBtn" class="btn btn-ghost btn-theme btn-sm" type="button" onclick="toggleTheme()" title="Сменить тему">
                         <i class="bi bi-moon-stars-fill"></i>
                     </button>
                 </li>
+                {% endif %}
                 <li class="nav-item ms-2">
                     {% if current_user.is_authenticated %}
                     <span class="nav-link disabled pe-0">{{ current_user.first_name or current_user.username or 'Пользователь' }}</span>
@@ -92,7 +121,12 @@
                 <div class="row g-3">
                     <div class="col-md-6">
                         <label class="form-label">Банк <span class="text-danger">*</span></label>
-                        <input type="text" class="form-control" id="f_bank_name" placeholder="Тинькофф, Сбербанк...">
+                        <input type="text" class="form-control" id="f_bank_name" list="bankOptions" placeholder="Тинькофф, Сбербанк...">
+                        <datalist id="bankOptions">
+                            {% for bank in bank_options %}
+                                <option value="{{ bank }}"></option>
+                            {% endfor %}
+                        </datalist>
                     </div>
                     <div class="col-md-6">
                         <label class="form-label">Тип долга <span class="text-danger">*</span></label>
@@ -108,15 +142,15 @@
                     </div>
                     <div class="col-md-6">
                         <label class="form-label">Общая сумма долга (₽) <span class="text-danger">*</span></label>
-                        <input type="number" class="form-control" id="f_total_amount" min="0" step="0.01" placeholder="0.00">
+                        <input type="text" inputmode="decimal" class="form-control number-format" id="f_total_amount" placeholder="0 000">
                     </div>
                     <div class="col-md-6">
                         <label class="form-label">Текущий остаток (₽) <span class="text-danger">*</span></label>
-                        <input type="number" class="form-control" id="f_remaining_amount" min="0" step="0.01" placeholder="0.00">
+                        <input type="text" inputmode="decimal" class="form-control number-format" id="f_remaining_amount" placeholder="0 000">
                     </div>
                     <div class="col-md-6">
                         <label class="form-label">Минимальный платеж (₽)</label>
-                        <input type="number" class="form-control" id="f_minimum_payment" min="0" step="0.01" placeholder="0.00">
+                        <input type="text" inputmode="decimal" class="form-control number-format" id="f_minimum_payment" placeholder="0 000">
                     </div>
                     <div class="col-md-6">
                         <label class="form-label">Процентная ставка (%/год)</label>

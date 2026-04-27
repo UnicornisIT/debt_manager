@@ -1,0 +1,106 @@
+{% extends 'base.html' %}
+{% block title %}Экспорт данных — Админка{% endblock %}
+
+{% block content %}
+<div class="mb-4">
+    <h1 class="h3">Экспорт данных</h1>
+    <p class="text-muted">Выгрузка CSV-отчетов по пользователям, долгам и платежам.</p>
+</div>
+
+<div class="row g-4">
+    <div class="col-md-4">
+        <div class="card p-4 h-100">
+            <h5>Пользователи</h5>
+            <p class="text-muted">Выгрузить всех зарегистрированных пользователей.</p>
+            <a href="{{ url_for('admin_export_csv', export_type='users') }}" class="btn btn-primary">Скачать CSV</a>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="card p-4 h-100">
+            <h5>Долги</h5>
+            <p class="text-muted">Выгрузить все карточки долгов.</p>
+            <a href="{{ url_for('admin_export_csv', export_type='debts') }}" class="btn btn-primary">Скачать CSV</a>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="card p-4 h-100">
+            <h5>Платежи</h5>
+            <p class="text-muted">Выгрузить историю всех платежей.</p>
+            <a href="{{ url_for('admin_export_csv', export_type='payments') }}" class="btn btn-primary">Скачать CSV</a>
+        </div>
+    </div>
+</div>
+
+<div class="row g-4 mt-4">
+    <div class="col-12">
+        <div class="card p-4">
+            <h5 class="mb-3">Последние долги</h5>
+            {% if debts %}
+            <div class="table-responsive">
+                <table class="table table-hover align-middle mb-0">
+                    <thead>
+                        <tr>
+                            <th>ID</th>
+                            <th>Пользователь</th>
+                            <th>Банк</th>
+                            <th>Продукт</th>
+                            <th>Остаток</th>
+                            <th>Статус</th>
+                            <th>Дата</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for debt in debts %}
+                        <tr>
+                            <td>{{ debt.id }}</td>
+                            <td>{{ debt.user_id }}</td>
+                            <td>{{ debt.bank_name }}</td>
+                            <td>{{ debt.product_name }}</td>
+                            <td>{{ '{:,.0f}'.format(debt.remaining_amount).replace(',', ' ') }} ₽</td>
+                            <td>{{ debt.status }}</td>
+                            <td>{{ debt.created_at.strftime('%d.%m.%Y') if debt.created_at else '—' }}</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            {% else %}
+            <p class="text-muted">Нет долгов для отображения.</p>
+            {% endif %}
+        </div>
+    </div>
+    <div class="col-12">
+        <div class="card p-4">
+            <h5 class="mb-3">Последние платежи</h5>
+            {% if payments %}
+            <div class="table-responsive">
+                <table class="table table-hover align-middle mb-0">
+                    <thead>
+                        <tr>
+                            <th>ID</th>
+                            <th>Долг ID</th>
+                            <th>Сумма</th>
+                            <th>Дата</th>
+                            <th>Комментарий</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for payment in payments %}
+                        <tr>
+                            <td>{{ payment.id }}</td>
+                            <td>{{ payment.debt_id }}</td>
+                            <td>{{ '{:,.0f}'.format(payment.amount).replace(',', ' ') }} ₽</td>
+                            <td>{{ payment.payment_date.strftime('%d.%m.%Y') if payment.payment_date else '—' }}</td>
+                            <td>{{ payment.comment or '—' }}</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            {% else %}
+            <p class="text-muted">Нет платежей для отображения.</p>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %}

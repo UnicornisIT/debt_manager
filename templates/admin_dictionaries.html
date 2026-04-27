@@ -1,0 +1,73 @@
+{% extends 'base.html' %}
+{% block title %}Справочники — Админка{% endblock %}
+
+{% block content %}
+<div class="mb-4">
+    <h1 class="h3">Справочники</h1>
+    <p class="text-muted">Управляйте банками, типами долгов, статусами и другими справочными данными.</p>
+</div>
+
+{% if error_message %}
+<div class="alert alert-danger">{{ error_message }}</div>
+{% endif %}
+{% if success_message %}
+<div class="alert alert-success">{{ success_message }}</div>
+{% endif %}
+
+<div class="row g-4">
+    <div class="col-lg-5">
+        <div class="card p-4">
+            <h5 class="mb-3">Добавить элемент</h5>
+            <form method="post">
+                <div class="mb-3">
+                    <label class="form-label">Тип справочника</label>
+                    <select class="form-select" name="dictionary_type">
+                        <option value="">— выберите —</option>
+                        {% for key, label in types %}
+                        <option value="{{ key }}">{{ label }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label">Значение</label>
+                    <input type="text" class="form-control" name="value" placeholder="Введите значение">
+                </div>
+                <button type="submit" class="btn btn-primary">Добавить</button>
+            </form>
+        </div>
+    </div>
+    <div class="col-lg-7">
+        <div class="card p-4">
+            <h5 class="mb-3">Элементы справочников</h5>
+            <div class="table-responsive">
+                <table class="table table-striped align-middle">
+                    <thead>
+                        <tr>
+                            <th>Тип</th>
+                            <th>Значение</th>
+                            <th>Действия</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for entry in entries %}
+                        <tr>
+                            <td>{{ type_labels[entry.dictionary_type] }}</td>
+                            <td>{{ entry.value }}</td>
+                            <td>
+                                <form method="post" action="{{ url_for('admin_delete_dictionary_entry', entry_id=entry.id) }}" class="d-inline">
+                                    <button type="submit" class="btn btn-outline-danger btn-sm">Удалить</button>
+                                </form>
+                            </td>
+                        </tr>
+                        {% else %}
+                        <tr>
+                            <td colspan="3" class="text-center text-muted">Нет элементов справочников.</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

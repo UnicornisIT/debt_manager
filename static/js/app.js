@@ -48,6 +48,33 @@ function formatMoney(n) {
     return Number(n).toLocaleString('ru-RU', { maximumFractionDigits: 0 }) + ' ₽';
 }
 
+function formatNumberInputValue(value) {
+    if (!value && value !== 0) return '';
+    let text = String(value).replace(/\s+/g, '').replace(',', '.');
+    const negative = text.startsWith('-');
+    if (negative) text = text.slice(1);
+    const parts = text.split('.');
+    let integer = parts[0].replace(/[^0-9]/g, '');
+    const fraction = parts[1] || '';
+    if (integer === '') integer = '0';
+    integer = integer.replace(/\B(?=(\d{3})+(?!\d))/g, ' ');
+    return (negative ? '-' : '') + integer + (fraction ? '.' + fraction : '');
+}
+
+function setupNumberFormatInputs() {
+    document.querySelectorAll('.number-format').forEach(input => {
+        input.addEventListener('input', () => {
+            const cursorPos = input.selectionStart;
+            const before = input.value;
+            input.value = formatNumberInputValue(before);
+            const diff = input.value.length - before.length;
+            if (typeof cursorPos === 'number') {
+                input.setSelectionRange(cursorPos + diff, cursorPos + diff);
+            }
+        });
+    });
+}
+
 function applyTheme(theme) {
     document.documentElement.setAttribute('data-theme', theme);
     document.documentElement.dataset.theme = theme;
@@ -65,7 +92,7 @@ function applyTheme(theme) {
 }
 
 function toggleTheme() {
-    const current = document.documentElement.dataset.theme || document.documentElement.getAttribute('data-theme') || 'dark';
+    const current = document.documentElement.dataset.theme || document.documentElement.getAttribute('data-theme') || 'light';
     applyTheme(current === 'light' ? 'dark' : 'light');
 }
 
@@ -379,7 +406,7 @@ function getNextDay(dateStr) {
 // ══════════════════════════════════════════════════════════
 
 document.addEventListener('DOMContentLoaded', () => {
-    const savedTheme = localStorage.getItem('debtTheme') || 'dark';
+    const savedTheme = localStorage.getItem('debtTheme') || 'light';
     applyTheme(savedTheme);
 
     // Сбросить форму при закрытии модалки долга
@@ -392,6 +419,9 @@ document.addEventListener('DOMContentLoaded', () => {
             if (e.key === 'Enter') submitPayment();
         });
     }
+
+    // Форматирование входных сумм
+    setupNumberFormatInputs();
 
     // Анимация карточек при загрузке
     const cards = document.querySelectorAll('.debt-card');

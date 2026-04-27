@@ -1,7 +1,13 @@
-from flask import Flask, render_template, request, jsonify, redirect, url_for
-from flask_login import LoginManager, current_user, login_user, logout_user
+from flask import Flask, render_template, request, jsonify, redirect, url_for, Response, abort
+from flask_login import LoginManager, UserMixin, current_user, login_user, logout_user
+import re
+from collections import OrderedDict
 from datetime import datetime, date, timedelta
 from decimal import Decimal, InvalidOperation
+from functools import wraps
+from io import StringIO
+import csv
+from sqlalchemy import text, func
 from extensions import db
 from config import Config
 import hashlib
@@ -10,6 +16,28 @@ import time
 
 
 login_manager = LoginManager()
+
+
+class AdminUser(UserMixin):
+    """Временный администратор для входа без Telegram"""
+
+    def __init__(self):
+        self.id = 'admin'
+        self.username = 'admin'
+        self.first_name = 'Администратор'
+        self.role = 'superadmin'
+        self.is_blocked = False
+
+    @property
+    def is_admin(self):
+        return True
+
+    @property
+    def is_superadmin(self):
+        return True
+
+    def get_id(self):
+        return str(self.id)
 
 
 def create_app():
@@ -29,7 +57,12 @@ def load_user(user_id):
     from models import User
     if not user_id:
         return None
-    return db.session.get(User, int(user_id))
+    if str(user_id) == 'admin':
+        return AdminUser()
+    try:
+        return db.session.get(User, int(user_id))
+    except (ValueError, TypeError):
+        return None
 
 
 @login_manager.unauthorized_handler
@@ -41,16 +74,271 @@ def unauthorized():
 
 @app.before_request
 def require_login():
-    allowed_endpoints = {'static', 'login', 'telegram_login', 'logout'}
+    allowed_endpoints = {'static', 'login', 'telegram_login', 'logout', 'admin_login'}
     if request.endpoint in allowed_endpoints:
         return
+
+    if getattr(current_user, 'is_authenticated', False) and getattr(current_user, 'is_admin', False):
+        if not request.path.startswith('/admin'):
+            return redirect(url_for('admin_dashboard'))
+
+    if getattr(current_user, 'is_authenticated', False) and getattr(current_user, 'is_blocked', False):
+        logout_user()
+        if request.path.startswith('/api/'):
+            return jsonify({'success': False, 'error': 'Учетная запись заблокирована'}), 403
+        return render_template('login.html', error='Ваша учётная запись заблокирована.', bot_username=app.config.get('TELEGRAM_BOT_USERNAME', ''), telegram_allowed=False)
     if not getattr(current_user, 'is_authenticated', False):
         return unauthorized()
 
 
 @app.context_processor
 def inject_user():
-    return dict(current_user=current_user)
+    app_name = get_setting('app_name', 'ДолгТрекер')
+    bank_options = get_dictionary_values('bank')
+    hide_theme_toggle = get_setting('hide_theme_toggle', 'false') == 'true'
+    return dict(current_user=current_user, app_name=app_name, bank_options=bank_options, hide_theme_toggle=hide_theme_toggle)
+
+
+# ──────────────────────────────────────────────────────────────
+# Админские вспомогательные функции
+# ──────────────────────────────────────────────────────────────
+
+
+def get_setting(key, default=None):
+    from models import AppSetting
+    try:
+        setting = AppSetting.query.filter_by(key=key).first()
+        return setting.value if setting else default
+    except Exception:
+        return default
+
+
+def get_dictionary_values(dictionary_type):
+    from models import DictionaryEntry
+    try:
+        entries = DictionaryEntry.query.filter_by(dictionary_type=dictionary_type, is_active=True).order_by(DictionaryEntry.value.asc()).all()
+        return [entry.value for entry in entries]
+    except Exception:
+        return []
+
+
+def group_entries_by_month(entries, date_attr):
+    grouped = OrderedDict()
+    for entry in entries:
+        entry_date = getattr(entry, date_attr, None)
+        if not entry_date:
+            continue
+        key = entry_date.strftime('%Y-%m')
+        if key not in grouped:
+            grouped[key] = {
+                'year_month': key,
+                'title': entry_date.strftime('%m.%Y'),
+                'date': entry_date,
+                'items': [],
+            }
+        grouped[key]['items'].append(entry)
+
+    for group in grouped.values():
+        group['items'].sort(key=lambda item: getattr(item, date_attr), reverse=True)
+
+    return sorted(grouped.values(), key=lambda group: group['date'], reverse=True)
+
+
+def set_setting(key, value, description=None):
+    from models import AppSetting
+    setting = AppSetting.query.filter_by(key=key).first()
+    if not setting:
+        setting = AppSetting(key=key, value=value, description=description)
+        db.session.add(setting)
+    else:
+        setting.value = value
+        if description is not None:
+            setting.description = description
+    db.session.commit()
+    return setting
+
+
+def record_activity(action, user=None, entity_type=None, entity_id=None, description=None):
+    from models import ActivityLog
+    user_id = getattr(user, 'id', None) if user else None
+    if not isinstance(user_id, int):
+        try:
+            user_id = int(user_id)
+        except (TypeError, ValueError):
+            user_id = None
+
+    log = ActivityLog(
+        user_id=user_id,
+        action=action,
+        entity_type=entity_type,
+        entity_id=entity_id,
+        description=description,
+    )
+    db.session.add(log)
+    db.session.commit()
+
+
+def admin_required(view):
+    @wraps(view)
+    def wrapper(*args, **kwargs):
+        if not getattr(current_user, 'is_authenticated', False) or not getattr(current_user, 'is_admin', False):
+            return redirect(url_for('index'))
+        return view(*args, **kwargs)
+    return wrapper
+
+
+def ensure_db_schema():
+    from models import AppSetting, DictionaryEntry, ActivityLog, User
+
+    with app.app_context():
+        db.create_all()
+
+        def column_exists(table_name, column_name):
+            try:
+                result = db.session.execute(text("SHOW COLUMNS FROM `{}` LIKE :col".format(table_name)), {'col': column_name}).fetchone()
+                return bool(result)
+            except Exception:
+                return False
+
+        def add_column_if_missing(table_name, column_definition):
+            column_name = column_definition.split()[0].strip('`')
+            if not column_exists(table_name, column_name):
+                db.session.execute(text(f"ALTER TABLE `{table_name}` ADD COLUMN {column_definition}"))
+
+        def foreign_key_exists(table_name, column_name, referenced_table, referenced_column):
+            try:
+                result = db.session.execute(
+                    text(
+                        "SELECT COUNT(*) FROM information_schema.KEY_COLUMN_USAGE "
+                        "WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = :table_name "
+                        "AND COLUMN_NAME = :column_name AND REFERENCED_TABLE_NAME = :referenced_table "
+                        "AND REFERENCED_COLUMN_NAME = :referenced_column"
+                    ),
+                    {
+                        'table_name': table_name,
+                        'column_name': column_name,
+                        'referenced_table': referenced_table,
+                        'referenced_column': referenced_column,
+                    }
+                ).scalar()
+                return bool(result)
+            except Exception:
+                return False
+
+        try:
+            add_column_if_missing('users', 'created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP')
+            add_column_if_missing('users', "role ENUM('user','admin','superadmin') NOT NULL DEFAULT 'user'")
+            add_column_if_missing('users', 'is_blocked TINYINT(1) NOT NULL DEFAULT 0')
+            add_column_if_missing('users', 'last_login_ip VARCHAR(100) NULL')
+            add_column_if_missing('users', 'last_user_agent TEXT NULL')
+            add_column_if_missing('users', 'login_count INT NOT NULL DEFAULT 0')
+
+            add_column_if_missing('debts', 'user_id INT NULL')
+            add_column_if_missing('debts', 'created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP')
+            add_column_if_missing('debts', 'updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP')
+
+            if not foreign_key_exists('debts', 'user_id', 'users', 'id'):
+                db.session.execute(text("ALTER TABLE `debts` ADD CONSTRAINT `fk_debts_user_id` FOREIGN KEY (`user_id`) REFERENCES `users`(`id`) ON DELETE CASCADE"))
+
+            add_column_if_missing('payments', 'debt_id INT NULL')
+            add_column_if_missing('payments', 'remaining_after_payment DECIMAL(12, 2) NOT NULL DEFAULT 0')
+            add_column_if_missing('payments', 'created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP')
+            if not foreign_key_exists('payments', 'debt_id', 'debts', 'id'):
+                db.session.execute(text("ALTER TABLE `payments` ADD CONSTRAINT `fk_payments_debt_id` FOREIGN KEY (`debt_id`) REFERENCES `debts`(`id`) ON DELETE CASCADE"))
+
+            add_column_if_missing('incomes', 'user_id INT NULL')
+            add_column_if_missing('incomes', 'created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP')
+            if not foreign_key_exists('incomes', 'user_id', 'users', 'id'):
+                db.session.execute(text("ALTER TABLE `incomes` ADD CONSTRAINT `fk_incomes_user_id` FOREIGN KEY (`user_id`) REFERENCES `users`(`id`) ON DELETE CASCADE"))
+
+            add_column_if_missing('expenses', 'user_id INT NULL')
+            add_column_if_missing('expenses', 'created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP')
+            if not foreign_key_exists('expenses', 'user_id', 'users', 'id'):
+                db.session.execute(text("ALTER TABLE `expenses` ADD CONSTRAINT `fk_expenses_user_id` FOREIGN KEY (`user_id`) REFERENCES `users`(`id`) ON DELETE CASCADE"))
+
+            add_column_if_missing('app_settings', '`key` VARCHAR(100) NOT NULL UNIQUE')
+            add_column_if_missing('app_settings', 'value TEXT NULL')
+            add_column_if_missing('app_settings', 'description TEXT NULL')
+            add_column_if_missing('app_settings', 'created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP')
+            add_column_if_missing('app_settings', 'updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP')
+
+            add_column_if_missing('dictionary_entries', "dictionary_type ENUM('bank', 'debt_type', 'debt_category', 'status', 'comment_template', 'interest_rate', 'product_type') NOT NULL")
+            add_column_if_missing('dictionary_entries', 'value VARCHAR(150) NOT NULL')
+            add_column_if_missing('dictionary_entries', 'is_active TINYINT(1) NOT NULL DEFAULT 1')
+            add_column_if_missing('dictionary_entries', 'created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP')
+            add_column_if_missing('dictionary_entries', 'updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP')
+
+            add_column_if_missing('activity_logs', 'user_id INT NULL')
+            add_column_if_missing('activity_logs', 'action VARCHAR(100) NOT NULL')
+            add_column_if_missing('activity_logs', 'entity_type VARCHAR(50) NULL')
+            add_column_if_missing('activity_logs', 'entity_id INT NULL')
+            add_column_if_missing('activity_logs', 'description TEXT NULL')
+            add_column_if_missing('activity_logs', 'created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP')
+            if not foreign_key_exists('activity_logs', 'user_id', 'users', 'id'):
+                db.session.execute(text("ALTER TABLE `activity_logs` ADD CONSTRAINT `fk_activity_logs_user_id` FOREIGN KEY (`user_id`) REFERENCES `users`(`id`) ON DELETE SET NULL"))
+
+            db.session.commit()
+        except Exception:
+            db.session.rollback()
+
+
+ensure_db_schema()
+
+
+DICTIONARY_TYPES = [
+    ('bank', 'Банки'),
+    ('debt_type', 'Типы долгов'),
+    ('debt_category', 'Категории долгов'),
+    ('status', 'Статусы'),
+    ('comment_template', 'Шаблоны комментариев'),
+    ('interest_rate', 'Стандартные процентные ставки'),
+    ('product_type', 'Типы финансовых продуктов'),
+]
+
+INCOME_CATEGORIES = [
+    ('salary', 'Зарплата'),
+    ('advance', 'Аванс'),
+    ('side_job', 'Подработка'),
+    ('debt_return', 'Возврат долга'),
+    ('bonus', 'Премия'),
+    ('scholarship', 'Стипендия'),
+    ('other', 'Другое'),
+]
+
+EXPENSE_CATEGORIES = [
+    ('products', 'Продукты'),
+    ('transport', 'Транспорт'),
+    ('communication', 'Связь'),
+    ('rent', 'Аренда'),
+    ('loans', 'Кредиты'),
+    ('entertainment', 'Развлечения'),
+    ('health', 'Здоровье'),
+    ('education', 'Обучение'),
+    ('clothing', 'Одежда'),
+    ('subscriptions', 'Подписки'),
+    ('other', 'Другое'),
+]
+
+PAYMENT_METHODS = [
+    ('card', 'Карта'),
+    ('cash', 'Наличные'),
+    ('transfer', 'Перевод'),
+    ('other', 'Другое'),
+]
+
+DEFAULT_SETTINGS = {
+    'app_name': 'ДолгТрекер',
+    'default_currency': 'RUB',
+    'registration_enabled': 'false',
+    'telegram_login_enabled': 'true',
+    'debt_limit_per_user': '50',
+    'archive_enabled': 'true',
+    'export_enabled': 'true',
+    'payment_warning_days': '7',
+    'urgent_payment_days': '3',
+    'overdue_after_date': 'true',
+    'hide_theme_toggle': 'false',
+}
 
 
 # ──────────────────────────────────────────────────────────────
@@ -65,7 +353,8 @@ def parse_decimal(value, field_name, required=True):
             raise ValueError(f"Поле '{field_name}' обязательно для заполнения")
         return None
     try:
-        result = Decimal(str(value).replace(',', '.'))
+        normalized = re.sub(r'\s+', '', str(value)).replace(',', '.')
+        result = Decimal(normalized)
         if result < 0:
             raise ValueError(f"Поле '{field_name}' не может быть отрицательным")
         return result
@@ -83,6 +372,71 @@ def parse_date(value, field_name, required=False):
         return datetime.strptime(str(value).strip(), '%Y-%m-%d').date()
     except ValueError:
         raise ValueError(f"Поле '{field_name}' содержит некорректную дату (формат: ГГГГ-ММ-ДД)")
+
+
+def next_month_start(current_date):
+    next_month = current_date.month % 12 + 1
+    next_year = current_date.year + (current_date.month // 12)
+    return date(next_year, next_month, 1)
+
+
+def get_finance_summary(user_id):
+    from models import Debt, Income, Expense, Payment
+
+    today = date.today()
+    month_start = date(today.year, today.month, 1)
+    month_end = next_month_start(today)
+
+    active_debts = Debt.query.filter_by(status='active', user_id=user_id).order_by(db.case((Debt.next_payment_date.is_(None), 1), else_=0), Debt.next_payment_date.asc()).all()
+    total_remaining = sum(float(d.remaining_amount) for d in active_debts)
+    total_original = sum(float(d.total_amount) for d in active_debts)
+
+    incomes_this_month = Income.query.filter_by(user_id=user_id).filter(Income.income_date >= month_start, Income.income_date < month_end).all()
+    expenses_this_month = Expense.query.filter_by(user_id=user_id).filter(Expense.expense_date >= month_start, Expense.expense_date < month_end).all()
+    payments_this_month = Payment.query.join(Debt).filter(Debt.user_id == user_id, Payment.payment_date >= month_start, Payment.payment_date < month_end).all()
+
+    if not (incomes_this_month or expenses_this_month or payments_this_month):
+        latest_income = Income.query.with_entities(func.max(Income.income_date)).filter_by(user_id=user_id).scalar()
+        latest_expense = Expense.query.with_entities(func.max(Expense.expense_date)).filter_by(user_id=user_id).scalar()
+        latest_payment = Payment.query.join(Debt).with_entities(func.max(Payment.payment_date)).filter(Debt.user_id == user_id).scalar()
+        latest_date = max(d for d in (latest_income, latest_expense, latest_payment) if d is not None) if any((latest_income, latest_expense, latest_payment)) else None
+        if latest_date:
+            month_start = date(latest_date.year, latest_date.month, 1)
+            month_end = next_month_start(latest_date)
+            incomes_this_month = Income.query.filter_by(user_id=user_id).filter(Income.income_date >= month_start, Income.income_date < month_end).all()
+            expenses_this_month = Expense.query.filter_by(user_id=user_id).filter(Expense.expense_date >= month_start, Expense.expense_date < month_end).all()
+            payments_this_month = Payment.query.join(Debt).filter(Debt.user_id == user_id, Payment.payment_date >= month_start, Payment.payment_date < month_end).all()
+
+    total_incomes = float(Income.query.with_entities(func.coalesce(func.sum(Income.amount), 0)).filter_by(user_id=user_id).filter(Income.income_date >= month_start, Income.income_date < month_end).scalar() or 0)
+    total_expenses = float(Expense.query.with_entities(func.coalesce(func.sum(Expense.amount), 0)).filter_by(user_id=user_id).filter(Expense.expense_date >= month_start, Expense.expense_date < month_end).scalar() or 0)
+    total_payments = float(Payment.query.with_entities(func.coalesce(func.sum(Payment.amount), 0)).join(Debt).filter(Debt.user_id == user_id, Payment.payment_date >= month_start, Payment.payment_date < month_end).scalar() or 0)
+    free_balance = total_incomes - total_expenses - total_payments
+    overdue_count = len([d for d in active_debts if d.next_payment_date and d.next_payment_date < today])
+    archived_count = Debt.query.filter_by(status='archived', user_id=user_id).count()
+    total_debts = Debt.query.filter_by(user_id=user_id).count()
+
+    nearest_debt = next((d for d in active_debts if d.next_payment_date and d.next_payment_date >= today), None)
+
+    return {
+        'today': today,
+        'month_start': month_start,
+        'month_end': month_end,
+        'active_debts': active_debts,
+        'total_remaining': total_remaining,
+        'total_original': total_original,
+        'incomes_this_month': incomes_this_month,
+        'expenses_this_month': expenses_this_month,
+        'payments_this_month': payments_this_month,
+        'total_incomes': total_incomes,
+        'total_expenses': total_expenses,
+        'total_payments': total_payments,
+        'free_balance': free_balance,
+        'days_left': (month_end - today).days,
+        'nearest_debt': nearest_debt,
+        'overdue_count': overdue_count,
+        'archived_count': archived_count,
+        'total_debts': total_debts,
+    }
 
 
 def verify_telegram_login(data):
@@ -127,7 +481,15 @@ def verify_telegram_login(data):
 def login():
     if current_user.is_authenticated:
         return redirect(url_for('index'))
-    return render_template('login.html', bot_username=app.config.get('TELEGRAM_BOT_USERNAME', ''))
+    telegram_allowed = get_setting('telegram_login_enabled', app.config.get('TELEGRAM_LOGIN_ENABLED', 'true'))
+    if isinstance(telegram_allowed, str):
+        telegram_allowed = telegram_allowed.lower() in ('1', 'true', 'yes', 'on')
+    return render_template(
+        'login.html',
+        bot_username=app.config.get('TELEGRAM_BOT_USERNAME', ''),
+        telegram_allowed=telegram_allowed,
+        admin_login_enabled=app.config.get('ADMIN_LOGIN_ENABLED', False),
+    )
 
 
 @app.route('/telegram-login')
@@ -135,13 +497,19 @@ def telegram_login():
     data = request.args.to_dict()
     bot_username = app.config.get('TELEGRAM_BOT_USERNAME', '')
 
+    telegram_allowed = get_setting('telegram_login_enabled', app.config.get('TELEGRAM_LOGIN_ENABLED', 'true'))
+    if isinstance(telegram_allowed, str):
+        telegram_allowed = telegram_allowed.lower() in ('1', 'true', 'yes', 'on')
+    if not telegram_allowed:
+        return render_template('login.html', error='Вход через Telegram временно отключён администратором.', bot_username=bot_username, telegram_allowed=False, admin_login_enabled=app.config.get('ADMIN_LOGIN_ENABLED', False))
+
     if not verify_telegram_login(data):
-        return render_template('login.html', error='Ошибка авторизации через Telegram. Проверьте настройки бота.', bot_username=bot_username)
+        return render_template('login.html', error='Ошибка авторизации через Telegram. Проверьте настройки бота.', bot_username=bot_username, telegram_allowed=telegram_allowed, admin_login_enabled=app.config.get('ADMIN_LOGIN_ENABLED', False))
 
     from models import User
     telegram_id = data.get('id')
     if not telegram_id:
-        return render_template('login.html', error='Неверные данные авторизации.', bot_username=bot_username)
+        return render_template('login.html', error='Неверные данные авторизации.', bot_username=bot_username, telegram_allowed=telegram_allowed, admin_login_enabled=app.config.get('ADMIN_LOGIN_ENABLED', False))
 
     user = User.query.filter_by(telegram_id=int(telegram_id)).first()
     auth_date = datetime.utcfromtimestamp(int(data.get('auth_date', '0')))
@@ -154,17 +522,48 @@ def telegram_login():
             photo_url=data.get('photo_url'),
             auth_date=auth_date,
         )
+        # Первому пользователю назначаем супер-админа, чтобы админка была доступна
+        if not User.query.filter(User.role.in_(['admin', 'superadmin'])).first():
+            user.role = 'superadmin'
         db.session.add(user)
     else:
+        if user.is_blocked:
+            return render_template('login.html', error='Ваш аккаунт заблокирован. Обратитесь к администратору.', bot_username=bot_username, telegram_allowed=False, admin_login_enabled=app.config.get('ADMIN_LOGIN_ENABLED', False))
         user.username = data.get('username')
         user.first_name = data.get('first_name')
         user.last_name = data.get('last_name')
         user.photo_url = data.get('photo_url')
         user.auth_date = auth_date
 
+    user.login_count = (user.login_count or 0) + 1
+    user.last_login_ip = request.headers.get('X-Forwarded-For', request.remote_addr)
+    user.last_user_agent = request.headers.get('User-Agent')
+
     db.session.commit()
     login_user(user)
     return redirect(url_for('index'))
+
+
+@app.route('/admin/login', methods=['GET', 'POST'])
+def admin_login():
+    if current_user.is_authenticated and getattr(current_user, 'is_admin', False):
+        return redirect(url_for('admin_dashboard'))
+
+    admin_login_enabled = app.config.get('ADMIN_LOGIN_ENABLED', False)
+    admin_password = app.config.get('ADMIN_PASSWORD', '')
+    error_message = None
+
+    if request.method == 'POST':
+        if not admin_login_enabled or not admin_password:
+            error_message = 'Админ-вход отключён или пароль не настроен.'
+        else:
+            password = request.form.get('password', '')
+            if password == admin_password:
+                login_user(AdminUser())
+                return redirect(url_for('admin_dashboard'))
+            error_message = 'Неверный пароль администратора.'
+
+    return render_template('admin_login.html', admin_login_enabled=admin_login_enabled, error_message=error_message)
 
 
 @app.route('/logout')
@@ -173,22 +572,281 @@ def logout():
     return redirect(url_for('login'))
 
 
+# ──────────────────────────────────────────────────────────────# Админская панель
 # ──────────────────────────────────────────────────────────────
-# Основные страницы
+
+
+@app.route('/admin')
+@admin_required
+def admin_dashboard():
+    from models import User, Debt, Payment, ActivityLog, DictionaryEntry
+    stats = {
+        'users': User.query.count(),
+        'debts': Debt.query.count(),
+        'payments': Payment.query.count(),
+        'logs': ActivityLog.query.count(),
+        'dictionary_entries': DictionaryEntry.query.count(),
+    }
+    return render_template('admin_dashboard.html', stats=stats)
+
+
+@app.route('/admin/settings', methods=['GET', 'POST'])
+@admin_required
+def admin_settings():
+    from models import AppSetting
+    success_message = None
+
+    if request.method == 'POST':
+        for key in DEFAULT_SETTINGS.keys():
+            value = request.form.get(key, '').strip()
+            if key in ('registration_enabled', 'telegram_login_enabled', 'archive_enabled', 'export_enabled', 'overdue_after_date', 'hide_theme_toggle'):
+                value = 'true' if value == 'on' or value.lower() in ('1', 'true', 'yes', 'on') else 'false'
+            if not value:
+                value = DEFAULT_SETTINGS.get(key, '')
+            set_setting(key, value)
+        record_activity('Изменил настройки приложения', current_user, description='Обновлены системные настройки')
+        return redirect(url_for('admin_settings', success='Настройки сохранены'))
+
+    settings = {key: get_setting(key, DEFAULT_SETTINGS[key]) for key in DEFAULT_SETTINGS}
+    return render_template('admin_settings.html', settings=settings, success_message=request.args.get('success'))
+
+
+@app.route('/admin/dictionaries', methods=['GET', 'POST'])
+@admin_required
+def admin_dictionaries():
+    from models import DictionaryEntry
+    error_message = None
+    success_message = request.args.get('success')
+
+    if request.method == 'POST':
+        dictionary_type = request.form.get('dictionary_type')
+        value = str(request.form.get('value', '')).strip()
+        if not dictionary_type or dictionary_type not in [item[0] for item in DICTIONARY_TYPES]:
+            error_message = 'Выберите тип справочника'
+        elif not value:
+            error_message = 'Значение не может быть пустым'
+        else:
+            try:
+                entry = DictionaryEntry(dictionary_type=dictionary_type, value=value)
+                db.session.add(entry)
+                db.session.commit()
+                record_activity('Добавил элемент справочника', current_user, entity_type=dictionary_type, description=value)
+                return redirect(url_for('admin_dictionaries', success='Элемент добавлен'))
+            except Exception as e:
+                db.session.rollback()
+                error_message = f'Не удалось сохранить элемент: {str(e)}'
+
+    entries = DictionaryEntry.query.order_by(DictionaryEntry.dictionary_type.asc(), DictionaryEntry.value.asc()).all()
+    type_labels = {key: label for key, label in DICTIONARY_TYPES}
+    return render_template('admin_dictionaries.html', entries=entries, types=DICTIONARY_TYPES, type_labels=type_labels, error_message=error_message, success_message=success_message)
+
+
+@app.route('/admin/dictionaries/<int:entry_id>/delete', methods=['POST'])
+@admin_required
+def admin_delete_dictionary_entry(entry_id):
+    from models import DictionaryEntry
+    entry = DictionaryEntry.query.get(entry_id)
+    if entry:
+        db.session.delete(entry)
+        db.session.commit()
+        record_activity('Удалил элемент справочника', current_user, entity_type=entry.dictionary_type, entity_id=entry.id, description=entry.value)
+        return redirect(url_for('admin_dictionaries', success='Элемент удалён'))
+    return redirect(url_for('admin_dictionaries', success='Элемент не найден'))
+
+
+@app.route('/admin/users')
+@admin_required
+def admin_users():
+    from models import User
+    users = User.query.order_by(User.role.desc(), User.created_at.desc()).all()
+    return render_template('admin_users.html', users=users)
+
+
+@app.route('/admin/impersonate/test', methods=['POST'])
+@admin_required
+def admin_impersonate_test():
+    from models import User
+    test_user = User.query.filter_by(username='test').first()
+    if not test_user:
+        test_user = User(
+            telegram_id=-999999999,
+            username='test',
+            first_name='test',
+            last_name=None,
+            auth_date=datetime.utcnow(),
+            role='user',
+            is_blocked=False,
+            login_count=0,
+        )
+        db.session.add(test_user)
+        db.session.commit()
+
+    if test_user.is_blocked:
+        test_user.is_blocked = False
+        db.session.commit()
+
+    logout_user()
+    login_user(test_user)
+    return redirect(url_for('index'))
+
+
+@app.route('/admin/impersonate/<int:user_id>', methods=['POST'])
+@admin_required
+def admin_impersonate_user(user_id):
+    from models import User
+    user = User.query.get_or_404(user_id)
+    if user.is_blocked:
+        return redirect(url_for('admin_users'))
+
+    logout_user()
+    login_user(user)
+    return redirect(url_for('index'))
+
+
+@app.route('/admin/users/<int:user_id>', methods=['GET', 'POST'])
+@admin_required
+def admin_user_detail(user_id):
+    from models import User, Debt, Payment, ActivityLog
+    user = User.query.get_or_404(user_id)
+    if request.method == 'POST':
+        action = request.form.get('action')
+        if action == 'block':
+            user.is_blocked = True
+            record_activity('Заблокировал пользователя', current_user, entity_type='user', entity_id=user.id, description=f'Пользователь {user.telegram_id}')
+        elif action == 'unblock':
+            user.is_blocked = False
+            record_activity('Разблокировал пользователя', current_user, entity_type='user', entity_id=user.id, description=f'Пользователь {user.telegram_id}')
+        elif action in ('make_admin', 'make_superadmin', 'make_user'):
+            if not current_user.is_superadmin:
+                return redirect(url_for('admin_user_detail', user_id=user.id))
+            if action == 'make_admin':
+                user.role = 'admin'
+                record_activity('Назначил администратора', current_user, entity_type='user', entity_id=user.id)
+            elif action == 'make_superadmin':
+                user.role = 'superadmin'
+                record_activity('Назначил супер-администратора', current_user, entity_type='user', entity_id=user.id)
+            else:
+                user.role = 'user'
+                record_activity('Снял административные права', current_user, entity_type='user', entity_id=user.id)
+        elif action == 'delete':
+            if not current_user.is_superadmin:
+                return redirect(url_for('admin_user_detail', user_id=user.id))
+            record_activity('Удалил пользователя', current_user, entity_type='user', entity_id=user.id)
+            db.session.delete(user)
+            db.session.commit()
+            return redirect(url_for('admin_users'))
+        db.session.commit()
+        return redirect(url_for('admin_user_detail', user_id=user.id, success='Действие выполнено'))
+
+    active_debts = Debt.query.filter_by(user_id=user.id, status='active').count()
+    archived_debts = Debt.query.filter_by(user_id=user.id, status='archived').count()
+    payments = Payment.query.join(Debt).filter(Debt.user_id == user.id).count()
+    recent_actions = ActivityLog.query.filter_by(user_id=user.id).order_by(ActivityLog.created_at.desc()).limit(20).all()
+    return render_template('admin_user_detail.html', user=user, active_debts=active_debts, archived_debts=archived_debts, payments=payments, recent_actions=recent_actions, success_message=request.args.get('success'))
+
+
+@app.route('/admin/logs')
+@admin_required
+def admin_logs():
+    from models import ActivityLog
+    logs = ActivityLog.query.order_by(ActivityLog.created_at.desc()).limit(100).all()
+    return render_template('admin_logs.html', logs=logs)
+
+
+@app.route('/admin/export')
+@admin_required
+def admin_export():
+    from models import Debt, Payment
+    debts = Debt.query.order_by(Debt.created_at.desc()).limit(100).all()
+    payments = Payment.query.order_by(Payment.payment_date.desc()).limit(100).all()
+    return render_template('admin_export.html', debts=debts, payments=payments)
+
+
+@app.route('/admin/export/<string:export_type>.csv')
+@admin_required
+def admin_export_csv(export_type):
+    from models import User, Debt, Payment
+    output = StringIO()
+    writer = csv.writer(output)
+
+    if export_type == 'users':
+        writer.writerow(['id', 'telegram_id', 'username', 'first_name', 'last_name', 'role', 'is_blocked', 'login_count', 'last_login_ip', 'last_user_agent', 'created_at'])
+        for user in User.query.order_by(User.id.asc()).all():
+            writer.writerow([
+                user.id,
+                user.telegram_id,
+                user.username,
+                user.first_name,
+                user.last_name,
+                user.role,
+                'yes' if user.is_blocked else 'no',
+                user.login_count,
+                user.last_login_ip,
+                user.last_user_agent,
+                user.created_at.strftime('%Y-%m-%d %H:%M:%S') if user.created_at else '',
+            ])
+        filename = 'users.csv'
+    elif export_type == 'debts':
+        writer.writerow(['id', 'user_id', 'bank_name', 'debt_type', 'product_name', 'total_amount', 'remaining_amount', 'status', 'next_payment_date', 'created_at', 'updated_at'])
+        for debt in Debt.query.order_by(Debt.id.asc()).all():
+            writer.writerow([
+                debt.id,
+                debt.user_id,
+                debt.bank_name,
+                debt.debt_type,
+                debt.product_name,
+                float(debt.total_amount),
+                float(debt.remaining_amount),
+                debt.status,
+                debt.next_payment_date.strftime('%Y-%m-%d') if debt.next_payment_date else '',
+                debt.created_at.strftime('%Y-%m-%d %H:%M:%S') if debt.created_at else '',
+                debt.updated_at.strftime('%Y-%m-%d %H:%M:%S') if debt.updated_at else '',
+            ])
+        filename = 'debts.csv'
+    elif export_type == 'payments':
+        writer.writerow(['id', 'debt_id', 'amount', 'payment_date', 'remaining_after_payment', 'comment', 'created_at'])
+        for payment in Payment.query.order_by(Payment.id.asc()).all():
+            writer.writerow([
+                payment.id,
+                payment.debt_id,
+                float(payment.amount),
+                payment.payment_date.strftime('%Y-%m-%d') if payment.payment_date else '',
+                float(payment.remaining_after_payment),
+                payment.comment,
+                payment.created_at.strftime('%Y-%m-%d %H:%M:%S') if payment.created_at else '',
+            ])
+        filename = 'payments.csv'
+    else:
+        return redirect(url_for('admin_export'))
+
+    response = Response(output.getvalue(), mimetype='text/csv')
+    response.headers['Content-Disposition'] = f'attachment; filename={filename}'
+    return response
+
+
+# ──────────────────────────────────────────────────────────────# Основные страницы
 # ──────────────────────────────────────────────────────────────
 
 @app.route('/')
 def index():
     """Главный дашборд"""
-    from models import Debt
-    active_debts = Debt.query.filter_by(status='active', user_id=current_user.id).order_by(db.case((Debt.next_payment_date.is_(None), 1), else_=0), Debt.next_payment_date.asc()).all()
-    
-    # Сводная статистика
-    total_remaining = sum(float(d.remaining_amount) for d in active_debts)
-    total_original = sum(float(d.total_amount) for d in active_debts)
+    from models import Debt, Payment, Income, Expense
+    summary = get_finance_summary(current_user.id)
+    total_incomes = summary['total_incomes']
+    total_expenses = summary['total_expenses']
+    total_payments = summary['total_payments']
+    free_balance = summary['free_balance']
+    days_left = summary['days_left']
+    daily_budget = free_balance / days_left if days_left > 0 else 0
+    total_remaining = summary['total_remaining']
+    total_original = summary['total_original']
+    nearest_debt = summary['nearest_debt']
+    overdue_count = summary['overdue_count']
+    today = summary['today']
+    month_start = summary['month_start']
+    active_debts = summary['active_debts']
     
     # Ближайший платеж
-    today = date.today()
     upcoming = [d for d in active_debts if d.next_payment_date and d.next_payment_date >= today]
     nearest_debt = upcoming[0] if upcoming else None
     
@@ -203,6 +861,38 @@ def index():
         nearest_debt=nearest_debt,
         overdue_count=overdue_count,
         today=today,
+        month_start=month_start,
+        total_incomes=total_incomes,
+        total_expenses=total_expenses,
+        total_payments=total_payments,
+        free_balance=free_balance,
+        days_left=days_left,
+        daily_budget=daily_budget,
+    )
+
+
+@app.route('/finance')
+def finance():
+    summary = get_finance_summary(current_user.id)
+    return render_template('finance.html',
+        active_count=len(summary['active_debts']),
+        total_remaining=summary['total_remaining'],
+        total_original=summary['total_original'],
+        nearest_debt=summary['nearest_debt'],
+        overdue_count=summary['overdue_count'],
+        today=summary['today'],
+        month_start=summary['month_start'],
+        total_incomes=summary['total_incomes'],
+        total_expenses=summary['total_expenses'],
+        total_payments=summary['total_payments'],
+        free_balance=summary['free_balance'],
+        days_left=summary['days_left'],
+        daily_budget=(summary['free_balance'] / summary['days_left'] if summary['days_left'] > 0 else 0),
+        archived_count=summary['archived_count'],
+        total_debts=summary['total_debts'],
+        incomes_this_month=summary['incomes_this_month'],
+        expenses_this_month=summary['expenses_this_month'],
+        payments_this_month=summary['payments_this_month'],
     )
 
 
@@ -217,6 +907,204 @@ def archive():
     from models import Debt
     archived_debts = Debt.query.filter_by(status='archived', user_id=current_user.id).order_by(Debt.updated_at.desc()).all()
     return render_template('archive.html', debts=archived_debts)
+
+
+@app.route('/incomes', methods=['GET', 'POST'])
+def incomes():
+    from models import Income
+    error_message = None
+    success_message = request.args.get('success')
+
+    if request.method == 'POST':
+        try:
+            amount = parse_decimal(request.form.get('amount'), 'Сумма', required=True)
+            category = request.form.get('category')
+            if category not in [item[0] for item in INCOME_CATEGORIES]:
+                raise ValueError('Выберите корректную категорию дохода')
+            income_date = parse_date(request.form.get('income_date'), 'Дата', required=True)
+            source = str(request.form.get('source', '')).strip() or None
+            comment = str(request.form.get('comment', '')).strip() or None
+
+            income = Income(
+                user_id=current_user.id,
+                amount=amount,
+                category=category,
+                source=source,
+                income_date=income_date,
+                comment=comment,
+            )
+            db.session.add(income)
+            db.session.commit()
+            return redirect(url_for('incomes', success='Доход сохранён'))
+        except ValueError as e:
+            error_message = str(e)
+        except Exception as e:
+            db.session.rollback()
+            error_message = 'Ошибка сервера: ' + str(e)
+
+    incomes = Income.query.filter_by(user_id=current_user.id).order_by(Income.income_date.desc()).all()
+    groups = group_entries_by_month(incomes, 'income_date')
+    active_month = date.today().strftime('%Y-%m')
+    if groups and active_month not in [group['year_month'] for group in groups]:
+        active_month = groups[0]['year_month']
+    return render_template('incomes.html', incomes=incomes, groups=groups,
+                           active_month=active_month, categories=INCOME_CATEGORIES,
+                           success_message=success_message, error_message=error_message,
+                           edit_income=None)
+
+
+@app.route('/incomes/edit/<int:income_id>', methods=['GET', 'POST'])
+def edit_income(income_id):
+    from models import Income
+    error_message = None
+    success_message = request.args.get('success')
+    income = Income.query.filter_by(id=income_id, user_id=current_user.id).first()
+    if not income:
+        abort(404)
+
+    if request.method == 'POST':
+        try:
+            amount = parse_decimal(request.form.get('amount'), 'Сумма', required=True)
+            category = request.form.get('category')
+            if category not in [item[0] for item in INCOME_CATEGORIES]:
+                raise ValueError('Выберите корректную категорию дохода')
+            income_date = parse_date(request.form.get('income_date'), 'Дата', required=True)
+            source = str(request.form.get('source', '')).strip() or None
+            comment = str(request.form.get('comment', '')).strip() or None
+
+            income.amount = amount
+            income.category = category
+            income.source = source
+            income.income_date = income_date
+            income.comment = comment
+            db.session.commit()
+            return redirect(url_for('incomes', success='Доход обновлён'))
+        except ValueError as e:
+            error_message = str(e)
+        except Exception as e:
+            db.session.rollback()
+            error_message = 'Ошибка сервера: ' + str(e)
+
+    incomes = Income.query.filter_by(user_id=current_user.id).order_by(Income.income_date.desc()).all()
+    groups = group_entries_by_month(incomes, 'income_date')
+    return render_template('incomes.html', incomes=incomes, groups=groups,
+                           active_month=date.today().strftime('%Y-%m'), categories=INCOME_CATEGORIES,
+                           success_message=success_message, error_message=error_message,
+                           edit_income=income)
+
+
+@app.route('/incomes/delete/<int:income_id>', methods=['POST'])
+def delete_income(income_id):
+    from models import Income
+    income = Income.query.filter_by(id=income_id, user_id=current_user.id).first()
+    if not income:
+        abort(404)
+    db.session.delete(income)
+    db.session.commit()
+    return redirect(url_for('incomes', success='Доход удалён'))
+
+
+@app.route('/expenses', methods=['GET', 'POST'])
+def expenses():
+    from models import Expense
+    error_message = None
+    success_message = request.args.get('success')
+
+    if request.method == 'POST':
+        try:
+            amount = parse_decimal(request.form.get('amount'), 'Сумма', required=True)
+            category = request.form.get('category')
+            if category not in [item[0] for item in EXPENSE_CATEGORIES]:
+                raise ValueError('Выберите корректную категорию расхода')
+            title = str(request.form.get('title', '')).strip()
+            if not title:
+                raise ValueError('Название расхода обязательно')
+            expense_date = parse_date(request.form.get('expense_date'), 'Дата', required=True)
+            payment_method = str(request.form.get('payment_method', '')).strip() or None
+            comment = str(request.form.get('comment', '')).strip() or None
+
+            expense = Expense(
+                user_id=current_user.id,
+                amount=amount,
+                category=category,
+                title=title,
+                expense_date=expense_date,
+                payment_method=payment_method,
+                comment=comment,
+            )
+            db.session.add(expense)
+            db.session.commit()
+            return redirect(url_for('expenses', success='Расход сохранён'))
+        except ValueError as e:
+            error_message = str(e)
+        except Exception as e:
+            db.session.rollback()
+            error_message = 'Ошибка сервера: ' + str(e)
+
+    expenses = Expense.query.filter_by(user_id=current_user.id).order_by(Expense.expense_date.desc()).all()
+    groups = group_entries_by_month(expenses, 'expense_date')
+    active_month = date.today().strftime('%Y-%m')
+    if groups and active_month not in [group['year_month'] for group in groups]:
+        active_month = groups[0]['year_month']
+    return render_template('expenses.html', expenses=expenses, groups=groups,
+                           active_month=active_month, categories=EXPENSE_CATEGORIES,
+                           payment_methods=PAYMENT_METHODS, success_message=success_message,
+                           error_message=error_message, edit_expense=None)
+
+
+@app.route('/expenses/edit/<int:expense_id>', methods=['GET', 'POST'])
+def edit_expense(expense_id):
+    from models import Expense
+    error_message = None
+    success_message = request.args.get('success')
+    expense = Expense.query.filter_by(id=expense_id, user_id=current_user.id).first()
+    if not expense:
+        abort(404)
+
+    if request.method == 'POST':
+        try:
+            amount = parse_decimal(request.form.get('amount'), 'Сумма', required=True)
+            category = request.form.get('category')
+            if category not in [item[0] for item in EXPENSE_CATEGORIES]:
+                raise ValueError('Выберите корректную категорию расхода')
+            title = str(request.form.get('title', '')).strip()
+            if not title:
+                raise ValueError('Название расхода обязательно')
+            expense_date = parse_date(request.form.get('expense_date'), 'Дата', required=True)
+            payment_method = str(request.form.get('payment_method', '')).strip() or None
+            comment = str(request.form.get('comment', '')).strip() or None
+
+            expense.amount = amount
+            expense.category = category
+            expense.title = title
+            expense.expense_date = expense_date
+            expense.payment_method = payment_method
+            expense.comment = comment
+            db.session.commit()
+            return redirect(url_for('expenses', success='Расход обновлён'))
+        except ValueError as e:
+            error_message = str(e)
+        except Exception as e:
+            db.session.rollback()
+            error_message = 'Ошибка сервера: ' + str(e)
+
+    expenses = Expense.query.filter_by(user_id=current_user.id).order_by(Expense.expense_date.desc()).all()
+    groups = group_entries_by_month(expenses, 'expense_date')
+    return render_template('expenses.html', expenses=expenses, groups=groups,
+                           active_month=date.today().strftime('%Y-%m'), categories=EXPENSE_CATEGORIES,
+                           payment_methods=PAYMENT_METHODS, success_message=success_message,
+                           error_message=error_message, edit_expense=expense)
+
+
+@app.route('/expenses/delete/<int:expense_id>', methods=['POST'])
+def delete_expense(expense_id):
+    from models import Expense
+    expense = Expense.query.filter_by(id=expense_id, user_id=current_user.id).first()
+    if not expense:
+        abort(404)
+    db.session.delete(expense)
+    db.session.commit()
+    return redirect(url_for('expenses', success='Расход удалён'))
 
 
 # ──────────────────────────────────────────────────────────────
@@ -485,11 +1373,15 @@ def api_add_payment(debt_id):
 @app.route('/api/init-db', methods=['POST'])
 def init_db_route():
     """Инициализация БД и загрузка тестовых данных"""
-    from models import Debt, Payment
+    from models import Debt, Payment, Income, Expense
     db.create_all()
     
     # Добавляем тестовые данные только если БД пустая
-    if Debt.query.filter_by(user_id=current_user.id).count() == 0:
+    if (
+        Debt.query.filter_by(user_id=current_user.id).count() == 0
+        and Income.query.filter_by(user_id=current_user.id).count() == 0
+        and Expense.query.filter_by(user_id=current_user.id).count() == 0
+    ):
         seed_data()
     
     return jsonify({'success': True, 'message': 'База данных инициализирована'})
@@ -497,7 +1389,7 @@ def init_db_route():
 
 def seed_data():
     """Добавление тестовых данных"""
-    from models import Debt, Payment
+    from models import Debt, Payment, Income, Expense
     today = date.today()
 
     def shift_month(base_date, offset):
@@ -595,6 +1487,50 @@ def seed_data():
     for p in payments:
         db.session.add(p)
 
+    incomes = [
+        Income(
+            user_id=current_user.id,
+            amount=Decimal('85000'),
+            category='salary',
+            source='Основная работа',
+            income_date=date(today.year, today.month, 10),
+            comment='Зарплата за прошлый месяц',
+        ),
+        Income(
+            user_id=current_user.id,
+            amount=Decimal('15000'),
+            category='bonus',
+            source='Премия',
+            income_date=date(today.year, today.month, 5),
+            comment='Премия за выполнение плана',
+        ),
+    ]
+    for inc in incomes:
+        db.session.add(inc)
+
+    expenses = [
+        Expense(
+            user_id=current_user.id,
+            amount=Decimal('3500'),
+            category='products',
+            title='Продукты',
+            expense_date=date(today.year, today.month, 12),
+            payment_method='card',
+            comment='Покупка в магазине',
+        ),
+        Expense(
+            user_id=current_user.id,
+            amount=Decimal('6200'),
+            category='transport',
+            title='Транспорт',
+            expense_date=date(today.year, today.month, 7),
+            payment_method='card',
+            comment='Проезд и такси',
+        ),
+    ]
+    for exp in expenses:
+        db.session.add(exp)
+
     db.session.commit()
 
 
@@ -603,7 +1539,7 @@ def seed_data():
 # ──────────────────────────────────────────────────────────────
 
 if __name__ == '__main__':
-    from models import Debt, Payment  # Импортируем модели перед созданием таблиц
+    from models import Debt, Payment, Income, Expense  # Импортируем модели перед созданием таблиц
     with app.app_context():
         db.create_all()
     app.run(debug=True, host='0.0.0.0', port=5000)

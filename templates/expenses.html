@@ -1,0 +1,127 @@
+{% extends 'base.html' %}
+{% block title %}Расходы — Менеджер долгов{% endblock %}
+
+{% block content %}
+<div class="d-flex align-items-center justify-content-between gap-3 mb-4">
+    <div>
+        <h1 class="page-title mb-1"><i class="bi bi-basket3 text-danger me-2"></i>Расходы</h1>
+        <p class="text-muted mb-0">Фиксируйте траты и следите за расходами по категориям.</p>
+    </div>
+</div>
+
+{% if success_message %}
+<div class="alert alert-success">{{ success_message }}</div>
+{% endif %}
+{% if error_message %}
+<div class="alert alert-danger">{{ error_message }}</div>
+{% endif %}
+
+<div class="row g-4">
+    <div class="col-lg-5">
+        <div class="card p-4 h-100">
+            <h5 class="mb-3">{{ 'Редактировать расход' if edit_expense else 'Добавить расход' }}</h5>
+            <form method="post" novalidate action="{{ url_for('edit_expense', expense_id=edit_expense.id) if edit_expense else url_for('expenses') }}">
+                <div class="mb-3">
+                    <label class="form-label">Категория</label>
+                    <select class="form-select" name="category" required>
+                        <option value="">— выберите —</option>
+                        {% for key, label in categories %}
+                        <option value="{{ key }}" {% if edit_expense and edit_expense.category == key %}selected{% endif %}>{{ label }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label">Название</label>
+                    <input type="text" name="title" class="form-control" placeholder="Продукты, аренда, подписка..." required value="{{ edit_expense.title if edit_expense else '' }}">
+                </div>
+                <div class="mb-3">
+                    <label class="form-label">Сумма (₽)</label>
+                    <input type="text" inputmode="decimal" name="amount" class="form-control number-format" required value="{{ edit_expense.amount if edit_expense else '' }}">
+                </div>
+                <div class="mb-3">
+                    <label class="form-label">Дата</label>
+                    <input type="date" name="expense_date" class="form-control" required value="{{ edit_expense.expense_date.strftime('%Y-%m-%d') if edit_expense else '' }}">
+                </div>
+                <div class="mb-3">
+                    <label class="form-label">Способ оплаты</label>
+                    <select class="form-select" name="payment_method">
+                        <option value="">— выберите —</option>
+                        {% for key, label in payment_methods %}
+                        <option value="{{ key }}" {% if edit_expense and edit_expense.payment_method == key %}selected{% endif %}>{{ label }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label">Комментарий</label>
+                    <textarea name="comment" class="form-control" rows="3" placeholder="Покупка в магазине">{{ edit_expense.comment if edit_expense else '' }}</textarea>
+                </div>
+                <div class="d-flex gap-2 align-items-center">
+                    <button type="submit" class="btn btn-danger">{{ 'Сохранить изменения' if edit_expense else 'Сохранить расход' }}</button>
+                    {% if edit_expense %}
+                    <a href="{{ url_for('expenses') }}" class="btn btn-outline-secondary">Отменить</a>
+                    {% endif %}
+                </div>
+            </form>
+        </div>
+    </div>
+    <div class="col-lg-7">
+        <div class="card p-4 h-100">
+            <h5 class="mb-3">История расходов</h5>
+            {% if groups %}
+            <div class="accordion" id="expenseAccordion">
+                {% for group in groups %}
+                <div class="accordion-item">
+                    <h2 class="accordion-header" id="heading-{{ group.year_month }}">
+                        <button class="accordion-button {% if group.year_month != active_month %}collapsed{% endif %}" type="button" data-bs-toggle="collapse" data-bs-target="#collapse-{{ group.year_month }}" aria-expanded="{{ 'true' if group.year_month == active_month else 'false' }}" aria-controls="collapse-{{ group.year_month }}">
+                            {{ group.title }} <span class="badge bg-secondary ms-2">{{ group['items']|length }}</span>
+                        </button>
+                    </h2>
+                    <div id="collapse-{{ group.year_month }}" class="accordion-collapse collapse {% if group.year_month == active_month %}show{% endif %}" aria-labelledby="heading-{{ group.year_month }}" data-bs-parent="#expenseAccordion">
+                        <div class="accordion-body p-0">
+                            <div class="table-responsive">
+                                <table class="table align-middle mb-0">
+                                    <thead>
+                                        <tr>
+                                            <th>Название</th>
+                                            <th>Категория</th>
+                                            <th>Сумма</th>
+                                            <th>Дата</th>
+                                            <th>Способ</th>
+                                            <th>Комментарий</th>
+                                            <th class="text-end">Действия</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {% for expense in group['items'] %}
+                                        <tr>
+                                            <td>{{ expense.title }}</td>
+                                            <td>{{ dict(categories)[expense.category] }}</td>
+                                            <td>{{ '{:,.0f}'.format(expense.amount).replace(',', ' ') }} ₽</td>
+                                            <td>{{ expense.expense_date.strftime('%d.%m.%Y') }}</td>
+                                            <td>{{ dict(payment_methods).get(expense.payment_method, '—') }}</td>
+                                            <td>{{ expense.comment or '—' }}</td>
+                                            <td class="text-end">
+                                                <a href="{{ url_for('edit_expense', expense_id=expense.id) }}" class="btn btn-sm btn-outline-primary me-1">Изм.</a>
+                                                <form method="post" action="{{ url_for('delete_expense', expense_id=expense.id) }}" class="d-inline" onsubmit="return confirm('Удалить этот расход?');">
+                                                    <button type="submit" class="btn btn-sm btn-outline-danger">Удалить</button>
+                                                </form>
+                                            </td>
+                                        </tr>
+                                        {% endfor %}
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+            {% else %}
+            <div class="text-center py-5">
+                <p class="text-muted mb-0">Пока нет записей расходов. Добавьте первый расход.</p>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,58 @@
+{% extends 'base.html' %}
+{% block title %}Пользователи — Админка{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-start mb-4">
+    <div>
+        <h1 class="h3">Пользователи</h1>
+        <p class="text-muted">Список зарегистрированных пользователей и их статусы.</p>
+    </div>
+    <form method="post" action="{{ url_for('admin_impersonate_test') }}">
+        <button type="submit" class="btn btn-primary">Войти как тестовый пользователь</button>
+    </form>
+</div>
+
+<div class="card p-4">
+    <div class="table-responsive">
+        <table class="table table-hover align-middle">
+            <thead>
+                <tr>
+                    <th>#</th>
+                    <th>Telegram ID</th>
+                    <th>Имя</th>
+                    <th>Роль</th>
+                    <th>Блок</th>
+                    <th>Входов</th>
+                    <th>Создан</th>
+                    <th></th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for user in users %}
+                <tr>
+                    <td>{{ user.id }}</td>
+                    <td>{{ user.telegram_id }}</td>
+                    <td>{{ user.first_name or user.username or '—' }}</td>
+                    <td>{{ user.role }}</td>
+                    <td>{% if user.is_blocked %}<span class="badge bg-danger">Да</span>{% else %}<span class="badge bg-success">Нет</span>{% endif %}</td>
+                    <td>{{ user.login_count }}</td>
+                    <td>{{ user.created_at.strftime('%Y-%m-%d') if user.created_at else '—' }}</td>
+                    <td>
+                        <div class="btn-group" role="group">
+                            <a href="{{ url_for('admin_user_detail', user_id=user.id) }}" class="btn btn-outline-primary btn-sm">Открыть</a>
+                            <form method="post" action="{{ url_for('admin_impersonate_user', user_id=user.id) }}" class="d-inline">
+                                <button type="submit" class="btn btn-outline-success btn-sm">Имперсонализировать</button>
+                            </form>
+                        </div>
+                    </td>
+                </tr>
+                {% else %}
+                <tr>
+                    <td colspan="8" class="text-center text-muted">Нет пользователей.</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}

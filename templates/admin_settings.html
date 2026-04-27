@@ -1,0 +1,75 @@
+{% extends 'base.html' %}
+{% block title %}Настройки приложения — Админка{% endblock %}
+
+{% block content %}
+<div class="mb-4">
+    <h1 class="h3">Настройки приложения</h1>
+    <p class="text-muted">Здесь можно включать или отключать ключевые функции и управлять системными параметрами.</p>
+</div>
+
+{% if success_message %}
+<div class="alert alert-success">{{ success_message }}</div>
+{% endif %}
+
+<form method="post" class="row g-3">
+    <div class="col-md-6">
+        <label class="form-label">Название приложения</label>
+        <input type="text" name="app_name" class="form-control" value="{{ settings.app_name }}">
+    </div>
+    <div class="col-md-6">
+        <label class="form-label">Валюта по умолчанию</label>
+        <input type="text" name="default_currency" class="form-control" value="{{ settings.default_currency }}">
+    </div>
+    <div class="col-md-6">
+        <div class="form-check form-switch mt-3">
+            <input class="form-check-input" type="checkbox" id="telegram_login_enabled" name="telegram_login_enabled" {% if settings.telegram_login_enabled == 'true' %}checked{% endif %}>
+            <label class="form-check-label" for="telegram_login_enabled">Включить вход через Telegram</label>
+        </div>
+    </div>
+    <div class="col-md-6">
+        <div class="form-check form-switch mt-3">
+            <input class="form-check-input" type="checkbox" id="registration_enabled" name="registration_enabled" {% if settings.registration_enabled == 'true' %}checked{% endif %}>
+            <label class="form-check-label" for="registration_enabled">Включить регистрацию новых пользователей</label>
+        </div>
+    </div>
+    <div class="col-md-6">
+        <label class="form-label">Лимит долгов на пользователя</label>
+        <input type="number" name="debt_limit_per_user" class="form-control" value="{{ settings.debt_limit_per_user }}">
+    </div>
+    <div class="col-md-6">
+        <div class="form-check form-switch mt-3">
+            <input class="form-check-input" type="checkbox" id="archive_enabled" name="archive_enabled" {% if settings.archive_enabled == 'true' %}checked{% endif %}>
+            <label class="form-check-label" for="archive_enabled">Включить архив</label>
+        </div>
+    </div>
+    <div class="col-md-6">
+        <div class="form-check form-switch mt-3">
+            <input class="form-check-input" type="checkbox" id="export_enabled" name="export_enabled" {% if settings.export_enabled == 'true' %}checked{% endif %}>
+            <label class="form-check-label" for="export_enabled">Включить экспорт</label>
+        </div>
+    </div>
+    <div class="col-md-6">
+        <div class="form-check form-switch mt-3">
+            <input class="form-check-input" type="checkbox" id="hide_theme_toggle" name="hide_theme_toggle" {% if settings.hide_theme_toggle == 'true' %}checked{% endif %}>
+            <label class="form-check-label" for="hide_theme_toggle">Скрыть кнопку смены темы</label>
+        </div>
+    </div>
+    <div class="col-md-6">
+        <label class="form-label">Предупреждать о платеже за (дней)</label>
+        <input type="number" name="payment_warning_days" class="form-control" value="{{ settings.payment_warning_days }}">
+    </div>
+    <div class="col-md-6">
+        <label class="form-label">Считать платёж срочным за (дней)</label>
+        <input type="number" name="urgent_payment_days" class="form-control" value="{{ settings.urgent_payment_days }}">
+    </div>
+    <div class="col-md-6">
+        <div class="form-check form-switch mt-3">
+            <input class="form-check-input" type="checkbox" id="overdue_after_date" name="overdue_after_date" {% if settings.overdue_after_date == 'true' %}checked{% endif %}>
+            <label class="form-check-label" for="overdue_after_date">Считать просрочку после даты платежа</label>
+        </div>
+    </div>
+    <div class="col-12 mt-4">
+        <button type="submit" class="btn btn-primary">Сохранить настройки</button>
+    </div>
+</form>
+{% endblock %}

@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import datetime, date
 from flask_login import UserMixin
 from extensions import db
 
@@ -14,8 +14,25 @@ class User(UserMixin, db.Model):
     last_name = db.Column(db.String(100), nullable=True)
     photo_url = db.Column(db.String(255), nullable=True)
     auth_date = db.Column(db.DateTime, nullable=True)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
+    role = db.Column(db.Enum('user', 'admin', 'superadmin'), nullable=False, default='user')
+    is_blocked = db.Column(db.Boolean, default=False, nullable=False)
+    last_login_ip = db.Column(db.String(100), nullable=True)
+    last_user_agent = db.Column(db.Text, nullable=True)
+    login_count = db.Column(db.Integer, default=0, nullable=False)
 
     debts = db.relationship('Debt', back_populates='user', lazy=True, cascade='all, delete-orphan')
+    incomes = db.relationship('Income', back_populates='user', lazy=True, cascade='all, delete-orphan')
+    expenses = db.relationship('Expense', back_populates='user', lazy=True, cascade='all, delete-orphan')
+    activity_logs = db.relationship('ActivityLog', back_populates='user', lazy=True, cascade='all, delete-orphan')
+
+    @property
+    def is_admin(self):
+        return self.role in ('admin', 'superadmin')
+
+    @property
+    def is_superadmin(self):
+        return self.role == 'superadmin'
 
     def __repr__(self):
         return f'<User {self.telegram_id}>'
@@ -81,7 +98,7 @@ class Payment(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     debt_id = db.Column(db.Integer, db.ForeignKey('debts.id'), nullable=False)
     amount = db.Column(db.Numeric(12, 2), nullable=False)
-    payment_date = db.Column(db.Date, nullable=False, default=datetime.utcnow)
+    payment_date = db.Column(db.Date, nullable=False, default=date.today)
     comment = db.Column(db.Text, nullable=True)
     remaining_after_payment = db.Column(db.Numeric(12, 2), nullable=False)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
@@ -99,3 +116,113 @@ class Payment(db.Model):
 
     def __repr__(self):
         return f'<Payment {self.amount} for debt {self.debt_id}>'
+
+
+class Income(db.Model):
+    __tablename__ = 'incomes'
+
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
+    amount = db.Column(db.Numeric(12, 2), nullable=False)
+    category = db.Column(db.Enum('salary', 'advance', 'side_job', 'debt_return', 'bonus', 'scholarship', 'other'), nullable=False)
+    source = db.Column(db.String(150), nullable=True)
+    income_date = db.Column(db.Date, nullable=False)
+    comment = db.Column(db.Text, nullable=True)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+
+    user = db.relationship('User', back_populates='incomes')
+
+    def to_dict(self):
+        return {
+            'id': self.id,
+            'amount': float(self.amount),
+            'category': self.category,
+            'source': self.source,
+            'income_date': self.income_date.strftime('%Y-%m-%d') if self.income_date else None,
+            'income_date_display': self.income_date.strftime('%d.%m.%Y') if self.income_date else None,
+            'comment': self.comment,
+            'created_at': self.created_at.strftime('%d.%m.%Y %H:%M') if self.created_at else None,
+        }
+
+    def __repr__(self):
+        return f'<Income {self.amount} {self.category}>'
+
+
+class Expense(db.Model):
+    __tablename__ = 'expenses'
+
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
+    amount = db.Column(db.Numeric(12, 2), nullable=False)
+    category = db.Column(db.Enum('products', 'transport', 'communication', 'rent', 'loans', 'entertainment', 'health', 'education', 'clothing', 'subscriptions', 'other'), nullable=False)
+    title = db.Column(db.String(150), nullable=False)
+    expense_date = db.Column(db.Date, nullable=False)
+    payment_method = db.Column(db.String(80), nullable=True)
+    comment = db.Column(db.Text, nullable=True)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+
+    user = db.relationship('User', back_populates='expenses')
+
+    def to_dict(self):
+        return {
+            'id': self.id,
+            'amount': float(self.amount),
+            'category': self.category,
+            'title': self.title,
+            'expense_date': self.expense_date.strftime('%Y-%m-%d') if self.expense_date else None,
+            'expense_date_display': self.expense_date.strftime('%d.%m.%Y') if self.expense_date else None,
+            'payment_method': self.payment_method,
+            'comment': self.comment,
+            'created_at': self.created_at.strftime('%d.%m.%Y %H:%M') if self.created_at else None,
+        }
+
+    def __repr__(self):
+        return f'<Expense {self.amount} {self.title}>'
+
+
+class AppSetting(db.Model):
+    __tablename__ = 'app_settings'
+
+    id = db.Column(db.Integer, primary_key=True)
+    key = db.Column(db.String(100), unique=True, nullable=False)
+    value = db.Column(db.Text, nullable=True)
+    description = db.Column(db.Text, nullable=True)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+    def __repr__(self):
+        return f'<AppSetting {self.key}>'
+
+
+class DictionaryEntry(db.Model):
+    __tablename__ = 'dictionary_entries'
+    __table_args__ = (
+        db.UniqueConstraint('dictionary_type', 'value', name='uq_dictionary_type_value'),
+    )
+
+    id = db.Column(db.Integer, primary_key=True)
+    dictionary_type = db.Column(db.Enum('bank', 'debt_type', 'debt_category', 'status', 'comment_template', 'interest_rate', 'product_type'), nullable=False)
+    value = db.Column(db.String(150), nullable=False)
+    is_active = db.Column(db.Boolean, default=True, nullable=False)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+    def __repr__(self):
+        return f'<DictionaryEntry {self.dictionary_type}:{self.value}>'
+
+
+class ActivityLog(db.Model):
+    __tablename__ = 'activity_logs'
+
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=True)
+    action = db.Column(db.String(100), nullable=False)
+    entity_type = db.Column(db.String(50), nullable=True)
+    entity_id = db.Column(db.Integer, nullable=True)
+    description = db.Column(db.Text, nullable=True)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+
+    user = db.relationship('User', back_populates='activity_logs')
+
+    def __repr__(self):
+        return f'<ActivityLog {self.action}>'

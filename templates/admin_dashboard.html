@@ -1,0 +1,79 @@
+{% extends 'base.html' %}
+{% block title %}Админка — ДолгТрекер{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <div>
+        <h1 class="h3 mb-1">Админская панель</h1>
+        <p class="text-muted">Быстрый доступ к разделам управления и мониторинга.</p>
+    </div>
+    <form method="post" action="{{ url_for('admin_impersonate_test') }}">
+        <button type="submit" class="btn btn-primary">Войти как тестовый пользователь</button>
+    </form>
+</div>
+
+<div class="row g-4">
+    <div class="col-md-6 col-xl-3">
+        <div class="card p-4 h-100">
+            <div class="d-flex align-items-center justify-content-between mb-3">
+                <div>
+                    <h5 class="mb-1">Пользователи</h5>
+                    <p class="text-muted mb-0">Всего</p>
+                </div>
+                <span class="badge bg-primary rounded-pill fs-5">{{ stats.users }}</span>
+            </div>
+            <a href="{{ url_for('admin_users') }}" class="stretched-link">Перейти</a>
+        </div>
+    </div>
+    <div class="col-md-6 col-xl-3">
+        <div class="card p-4 h-100">
+            <div class="d-flex align-items-center justify-content-between mb-3">
+                <div>
+                    <h5 class="mb-1">Долги</h5>
+                    <p class="text-muted mb-0">Всего записей</p>
+                </div>
+                <span class="badge bg-success rounded-pill fs-5">{{ stats.debts }}</span>
+            </div>
+            <a href="{{ url_for('admin_export') }}" class="stretched-link">Перейти</a>
+        </div>
+    </div>
+    <div class="col-md-6 col-xl-3">
+        <div class="card p-4 h-100">
+            <div class="d-flex align-items-center justify-content-between mb-3">
+                <div>
+                    <h5 class="mb-1">Платежи</h5>
+                    <p class="text-muted mb-0">Всего платежей</p>
+                </div>
+                <span class="badge bg-warning rounded-pill fs-5">{{ stats.payments }}</span>
+            </div>
+            <a href="{{ url_for('admin_export') }}" class="stretched-link">Перейти</a>
+        </div>
+    </div>
+    <div class="col-md-6 col-xl-3">
+        <div class="card p-4 h-100">
+            <div class="d-flex align-items-center justify-content-between mb-3">
+                <div>
+                    <h5 class="mb-1">Журнал</h5>
+                    <p class="text-muted mb-0">Записей</p>
+                </div>
+                <span class="badge bg-danger rounded-pill fs-5">{{ stats.logs }}</span>
+            </div>
+            <a href="{{ url_for('admin_logs') }}" class="stretched-link">Перейти</a>
+        </div>
+    </div>
+</div>
+
+<div class="row mt-4">
+    <div class="col-md-6">
+        <div class="card p-4">
+            <h5>Быстрые ссылки</h5>
+            <ul class="list-group list-group-flush mt-3">
+                <li class="list-group-item"><a href="{{ url_for('admin_settings') }}">Настройки приложения</a></li>
+                <li class="list-group-item"><a href="{{ url_for('admin_dictionaries') }}">Справочники</a></li>
+                <li class="list-group-item"><a href="{{ url_for('admin_users') }}">Пользователи</a></li>
+                <li class="list-group-item"><a href="{{ url_for('admin_export') }}">Экспорт данных</a></li>
+            </ul>
+        </div>
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,114 @@
+{% extends 'base.html' %}
+{% block title %}Пользователь {{ user.id }} — Админка{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-start mb-4">
+    <div>
+        <h1 class="h3">Пользователь #{{ user.id }}</h1>
+        <p class="text-muted">Профиль, долги, статистика и административные действия.</p>
+    </div>
+</div>
+
+{% if success_message %}
+<div class="alert alert-success">{{ success_message }}</div>
+{% endif %}
+
+<div class="row g-4">
+    <div class="col-lg-6">
+        <div class="card p-4">
+            <h5 class="mb-3">Профиль</h5>
+            <dl class="row">
+                <dt class="col-5">Telegram ID</dt>
+                <dd class="col-7">{{ user.telegram_id }}</dd>
+                <dt class="col-5">Username</dt>
+                <dd class="col-7">{{ user.username or '—' }}</dd>
+                <dt class="col-5">Имя</dt>
+                <dd class="col-7">{{ user.first_name or '—' }}</dd>
+                <dt class="col-5">Роль</dt>
+                <dd class="col-7">{{ user.role }}</dd>
+                <dt class="col-5">Статус</dt>
+                <dd class="col-7">{% if user.is_blocked %}<span class="badge bg-danger">Заблокирован</span>{% else %}<span class="badge bg-success">Активен</span>{% endif %}</dd>
+                <dt class="col-5">Последний вход</dt>
+                <dd class="col-7">{{ user.auth_date.strftime('%Y-%m-%d %H:%M:%S') if user.auth_date else '—' }}</dd>
+                <dt class="col-5">IP</dt>
+                <dd class="col-7">{{ user.last_login_ip or '—' }}</dd>
+                <dt class="col-5">User Agent</dt>
+                <dd class="col-7">{{ user.last_user_agent or '—' }}</dd>
+                <dt class="col-5">Входов</dt>
+                <dd class="col-7">{{ user.login_count }}</dd>
+                <dt class="col-5">Зарегистрирован</dt>
+                <dd class="col-7">{{ user.created_at.strftime('%Y-%m-%d %H:%M:%S') if user.created_at else '—' }}</dd>
+            </dl>
+        </div>
+    </div>
+    <div class="col-lg-6">
+        <div class="card p-4">
+            <h5 class="mb-3">Статистика</h5>
+            <ul class="list-group list-group-flush">
+                <li class="list-group-item d-flex justify-content-between align-items-center">
+                    Активных долгов
+                    <span class="badge bg-primary rounded-pill">{{ active_debts }}</span>
+                </li>
+                <li class="list-group-item d-flex justify-content-between align-items-center">
+                    Архивных долгов
+                    <span class="badge bg-secondary rounded-pill">{{ archived_debts }}</span>
+                </li>
+                <li class="list-group-item d-flex justify-content-between align-items-center">
+                    Платежей
+                    <span class="badge bg-success rounded-pill">{{ payments }}</span>
+                </li>
+            </ul>
+        </div>
+    </div>
+</div>
+
+<div class="row g-4 mt-3">
+    <div class="col-lg-8">
+        <div class="card p-4">
+            <h5 class="mb-3">Последние действия</h5>
+            <div class="table-responsive">
+                <table class="table table-sm table-striped align-middle">
+                    <thead>
+                        <tr>
+                            <th>Дата</th>
+                            <th>Действие</th>
+                            <th>Описание</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for action in recent_actions %}
+                        <tr>
+                            <td>{{ action.created_at.strftime('%Y-%m-%d %H:%M:%S') }}</td>
+                            <td>{{ action.action }}</td>
+                            <td>{{ action.description or '—' }}</td>
+                        </tr>
+                        {% else %}
+                        <tr>
+                            <td colspan="3" class="text-center text-muted">Нет действий.</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+    <div class="col-lg-4">
+        <div class="card p-4">
+            <h5 class="mb-3">Действия администратора</h5>
+            <form method="post" class="d-grid gap-2">
+                {% if user.is_blocked %}
+                <button type="submit" name="action" value="unblock" class="btn btn-success">Разблокировать</button>
+                {% else %}
+                <button type="submit" name="action" value="block" class="btn btn-danger">Заблокировать</button>
+                {% endif %}
+                {% if current_user.is_superadmin %}
+                <button type="submit" name="action" value="make_admin" class="btn btn-outline-primary">Сделать администратором</button>
+                <button type="submit" name="action" value="make_superadmin" class="btn btn-outline-warning">Сделать супер-админом</button>
+                <button type="submit" name="action" value="make_user" class="btn btn-outline-secondary">Снять права администратора</button>
+                <button type="submit" name="action" value="delete" class="btn btn-outline-danger">Удалить пользователя</button>
+                {% endif %}
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}

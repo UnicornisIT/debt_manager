@@ -1,0 +1,42 @@
+{% extends 'base.html' %}
+{% block title %}Журнал действий — Админка{% endblock %}
+
+{% block content %}
+<div class="mb-4">
+    <h1 class="h3">Журнал действий</h1>
+    <p class="text-muted">Последние системные и пользовательские события.</p>
+</div>
+
+<div class="card p-4">
+    <div class="table-responsive">
+        <table class="table table-striped align-middle">
+            <thead>
+                <tr>
+                    <th>Дата</th>
+                    <th>Пользователь</th>
+                    <th>Действие</th>
+                    <th>Тип</th>
+                    <th>ID</th>
+                    <th>Описание</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for log in logs %}
+                <tr>
+                    <td>{{ log.created_at.strftime('%Y-%m-%d %H:%M:%S') }}</td>
+                    <td>{{ log.user.first_name or log.user.username if log.user else 'Система' }}</td>
+                    <td>{{ log.action }}</td>
+                    <td>{{ log.entity_type or '—' }}</td>
+                    <td>{{ log.entity_id or '—' }}</td>
+                    <td>{{ log.description or '—' }}</td>
+                </tr>
+                {% else %}
+                <tr>
+                    <td colspan="6" class="text-center text-muted">Нет записей.</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}

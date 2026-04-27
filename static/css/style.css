@@ -112,8 +112,46 @@ body {
 }
 
 /* ── Bootstrap dark-mode overrides ── */
-body, .navbar, .modal-content, .dropdown-menu, .toast, .alert, .table, .table th, .table td, .form-control, .form-select, .form-label, .form-text, .dropdown-item, .page-link, .list-group-item {
+body, .navbar, .modal-content, .dropdown-menu, .toast, .alert, .table, .table th, .table td, .form-control, .form-select, .form-label, .form-text, .dropdown-item, .page-link, .list-group-item, .card, .card-body, .card-header, .card-footer, .accordion-item, .accordion-button, .accordion-body, .breadcrumb-item {
     color: var(--text);
+    background: transparent;
+}
+
+.card {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+}
+
+.card-body,
+.card-header,
+.card-footer,
+.accordion-body,
+.accordion-button,
+.list-group-item,
+.dropdown-item,
+.breadcrumb-item,
+.page-link {
+    background: var(--bg-card);
+    color: var(--text) !important;
+    border-color: var(--border);
+}
+
+.accordion-button {
+    background: var(--bg-card);
+    color: var(--text) !important;
+}
+
+.accordion-button:not(.collapsed) {
+    background: var(--bg-card-2);
+}
+
+.accordion-button:hover,
+.accordion-button:focus {
+    background: var(--bg-card-2);
+}
+
+.btn-close {
+    filter: invert(1) grayscale(1);
 }
 
 a {
