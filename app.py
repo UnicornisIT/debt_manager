@@ -1,6 +1,6 @@
 from flask import Flask, render_template, request, jsonify, redirect, url_for
 from flask_login import LoginManager, current_user, login_user, logout_user
-from datetime import datetime, date
+from datetime import datetime, date, timedelta
 from decimal import Decimal, InvalidOperation
 from extensions import db
 from config import Config
@@ -100,6 +100,8 @@ def verify_telegram_login(data):
     except ValueError:
         return False
 
+    if auth_timestamp > time.time() + 300:
+        return False
     if time.time() - auth_timestamp > 86400:
         return False
 
@@ -498,6 +500,22 @@ def seed_data():
     from models import Debt, Payment
     today = date.today()
 
+    def shift_month(base_date, offset):
+        month = base_date.month + offset
+        year = base_date.year + (month - 1) // 12
+        month = (month - 1) % 12 + 1
+        return year, month
+
+    def next_payment_day(day, threshold_day):
+        if today.day < threshold_day:
+            return date(today.year, today.month, day)
+        year, month = shift_month(today, 1)
+        return date(year, month, day)
+
+    def previous_month_day(day, offset):
+        year, month = shift_month(today, offset)
+        return date(year, month, day)
+
     debts = [
         Debt(
             user_id=current_user.id,
@@ -508,12 +526,12 @@ def seed_data():
             remaining_amount=Decimal('47500'),
             minimum_payment=Decimal('3200'),
             interest_rate=Decimal('28.9'),
-            next_payment_date=date(today.year, today.month, 25) if today.day < 25
-                else date(today.year, today.month + 1 if today.month < 12 else 1, 25),
+            next_payment_date=next_payment_day(25, 25),
             comment='Основная кредитная карта',
             status='active',
         ),
         Debt(
+            user_id=current_user.id,
             bank_name='Сбербанк',
             debt_type='split',
             product_name='СберСплит — MacBook Pro',
@@ -521,12 +539,12 @@ def seed_data():
             remaining_amount=Decimal('120000'),
             minimum_payment=Decimal('15000'),
             interest_rate=None,
-            next_payment_date=date(today.year, today.month, 15) if today.day < 15
-                else date(today.year, today.month + 1 if today.month < 12 else 1, 15),
+            next_payment_date=next_payment_day(15, 15),
             comment='12 платежей, прошло 4',
             status='active',
         ),
         Debt(
+            user_id=current_user.id,
             bank_name='Альфа-Банк',
             debt_type='credit_card',
             product_name='Альфа-Карта',
@@ -534,12 +552,12 @@ def seed_data():
             remaining_amount=Decimal('8200'),
             minimum_payment=Decimal('1500'),
             interest_rate=Decimal('24.5'),
-            next_payment_date=date(today.year, today.month, today.day + 3) if today.day + 3 <= 28
-                else date(today.year, today.month + 1 if today.month < 12 else 1, 3),
+            next_payment_date=(today + timedelta(days=3)),
             comment='Почти погашена',
             status='active',
         ),
         Debt(
+            user_id=current_user.id,
             bank_name='ВТБ',
             debt_type='split',
             product_name='ВТБ Части — iPhone 15',
@@ -559,8 +577,20 @@ def seed_data():
 
     # Тестовые платежи для первого долга
     payments = [
-        Payment(debt_id=debts[0].id, amount=Decimal('10000'), payment_date=date(today.year, today.month - 1 if today.month > 1 else 12, 25), comment='Плановый платеж', remaining_after_payment=Decimal('57500')),
-        Payment(debt_id=debts[0].id, amount=Decimal('20000'), payment_date=date(today.year, today.month - 2 if today.month > 2 else 11, 25), comment='Досрочный платеж', remaining_after_payment=Decimal('67500')),
+        Payment(
+            debt_id=debts[0].id,
+            amount=Decimal('10000'),
+            payment_date=previous_month_day(25, -1),
+            comment='Плановый платеж',
+            remaining_after_payment=Decimal('57500')
+        ),
+        Payment(
+            debt_id=debts[0].id,
+            amount=Decimal('20000'),
+            payment_date=previous_month_day(25, -2),
+            comment='Досрочный платеж',
+            remaining_after_payment=Decimal('67500')
+        ),
     ]
     for p in payments:
         db.session.add(p)

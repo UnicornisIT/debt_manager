@@ -75,16 +75,26 @@ cd debt_manager
 
 ### 2. Виртуальное окружение и зависимости
 
+В этом репозитории уже есть `.venv`, но вы можете создать своё виртуальное окружение.
+
 ```bash
-python -m venv venv
+python -m venv .venv
 
 # Windows:
-venv\Scripts\activate
+.venv\Scripts\activate
 
 # Linux / macOS:
-source venv/bin/activate
+source .venv/bin/activate
 
 pip install -r requirements.txt
+```
+
+Если вы используете другое имя папки, например `venv`, то активируйте соответствующий путь:
+
+```bash
+venv\Scripts\activate
+# или
+source venv/bin/activate
 ```
 
 ### 3. Настроить переменные окружения
@@ -110,7 +120,12 @@ DB_PASSWORD=ваш_пароль
 DB_NAME=debt_manager
 ```
 
-> Токен бота получите у [@BotFather](https://t.me/BotFather). Обязательно настройте домен бота через команду `/setdomain`, иначе Telegram Login Widget работать не будет.
+> Токен бота получите у [@BotFather](https://t.me/BotFather). Для корректной работы Telegram Login Widget необходимо:
+> - зарегистрировать домен вашего сайта в настройках бота через команду `/setdomain`
+> - использовать HTTPS для доступа к приложению на сервере
+> - указать в `.env` и в настройках домена тот же адрес, что будет использоваться в браузере
+>
+> Пример: если приложение доступно по `https://debt.example.com`, то именно этот домен должен быть разрешён в настройках бота.
 
 ### 4. Создать базу данных MySQL
 
@@ -160,6 +175,10 @@ curl -X POST http://localhost:5000/api/init-db \
 ## 🔐 Авторизация через Telegram
 
 Приложение использует [Telegram Login Widget](https://core.telegram.org/widgets/login). При первом входе автоматически создаётся профиль пользователя. Данные сессии хранятся на стороне сервера через Flask-Login.
+
+Важно: Telegram Login Widget работает только на разрешённых доменах и по HTTPS. Для настройки домена в BotFather выполните команду `/setdomain` и укажите домен без протокола, например `debt.example.com`.
+
+В `templates/login.html` используется `data-auth-url`, который формирует ссылку на `https://<ваш-домен>/telegram-login`. Убедитесь, что этот адрес совпадает с реальным URL вашего сайта.
 
 Подпись каждого запроса проверяется HMAC-SHA256 с ключом, производным от токена бота. Авторизационный токен действителен 24 часа.
 
