@@ -21,7 +21,7 @@
         <div class="col-6 col-md-3">
             <div class="summary-card summary-card--danger">
                 <div class="summary-icon"><i class="bi bi-cash-stack"></i></div>
-                <div class="summary-value">{{ '{:,.0f}'.format(total_remaining).replace(',', ' ') }} ₽</div>
+                <div class="summary-value">{{ total_remaining|money }}</div>
                 <div class="summary-label">Общий остаток</div>
             </div>
         </div>
@@ -55,21 +55,21 @@
     <div class="col-12 col-md-4">
         <div class="summary-card summary-card--ok h-100">
             <div class="summary-icon"><i class="bi bi-wallet2"></i></div>
-            <div class="summary-value">{{ '{:,.0f}'.format(total_incomes).replace(',', ' ') }} ₽</div>
+            <div class="summary-value">{{ total_incomes|money }}</div>
             <div class="summary-label">Доходы за месяц</div>
         </div>
     </div>
     <div class="col-12 col-md-4">
         <div class="summary-card summary-card--danger h-100">
             <div class="summary-icon"><i class="bi bi-wallet2"></i></div>
-            <div class="summary-value">{{ '{:,.0f}'.format(total_expenses).replace(',', ' ') }} ₽</div>
+            <div class="summary-value">{{ total_expenses|money }}</div>
             <div class="summary-label">Расходы за месяц</div>
         </div>
     </div>
     <div class="col-12 col-md-4">
         <div class="summary-card summary-card--warning h-100">
             <div class="summary-icon"><i class="bi bi-bank2"></i></div>
-            <div class="summary-value">{{ '{:,.0f}'.format(total_payments).replace(',', ' ') }} ₽</div>
+            <div class="summary-value">{{ total_payments|money }}</div>
             <div class="summary-label">Платежи по долгам</div>
         </div>
     </div>
@@ -90,7 +90,7 @@
                 </li>
                 <li class="list-group-item d-flex justify-content-between align-items-center">
                     Свободные средства
-                    <span class="badge bg-{{ 'success' if free_balance >= 0 else 'danger' }} rounded-pill">{{ '{:,.0f}'.format(free_balance).replace(',', ' ') }} ₽</span>
+                    <span class="badge bg-{{ 'success' if free_balance >= 0 else 'danger' }} rounded-pill">{{ free_balance|money }}</span>
                 </li>
                 <li class="list-group-item d-flex justify-content-between align-items-center">
                     Осталось дней в месяце
@@ -98,7 +98,7 @@
                 </li>
                 <li class="list-group-item d-flex justify-content-between align-items-center">
                     Ежедневный бюджет
-                    <span class="badge bg-secondary rounded-pill">{{ '{:,.0f}'.format(daily_budget).replace(',', ' ') }} ₽</span>
+                    <span class="badge bg-secondary rounded-pill">{{ daily_budget|money }}</span>
                 </li>
             </ul>
         </div>
@@ -142,14 +142,14 @@
         <div class="col-md-6">
             <div class="card card-soft p-3">
                 <div class="fw-semibold mb-2">Доходы</div>
-                <div class="fs-4 fw-bold">{{ '{:,.0f}'.format(total_incomes).replace(',', ' ') }} ₽</div>
+                <div class="fs-4 fw-bold">{{ total_incomes|money }}</div>
                 <div class="text-muted">Количество записей: {{ incomes_this_month|length }}</div>
             </div>
         </div>
         <div class="col-md-6">
             <div class="card card-soft p-3">
                 <div class="fw-semibold mb-2">Расходы</div>
-                <div class="fs-4 fw-bold">{{ '{:,.0f}'.format(total_expenses).replace(',', ' ') }} ₽</div>
+                <div class="fs-4 fw-bold">{{ total_expenses|money }}</div>
                 <div class="text-muted">Количество записей: {{ expenses_this_month|length }}</div>
             </div>
         </div>

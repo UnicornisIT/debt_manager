@@ -56,7 +56,7 @@
                             <td>{{ debt.user_id }}</td>
                             <td>{{ debt.bank_name }}</td>
                             <td>{{ debt.product_name }}</td>
-                            <td>{{ '{:,.0f}'.format(debt.remaining_amount).replace(',', ' ') }} ₽</td>
+                            <td>{{ debt.remaining_amount|money }}</td>
                             <td>{{ debt.status }}</td>
                             <td>{{ debt.created_at.strftime('%d.%m.%Y') if debt.created_at else '—' }}</td>
                         </tr>
@@ -89,7 +89,7 @@
                         <tr>
                             <td>{{ payment.id }}</td>
                             <td>{{ payment.debt_id }}</td>
-                            <td>{{ '{:,.0f}'.format(payment.amount).replace(',', ' ') }} ₽</td>
+                            <td>{{ payment.amount|money }}</td>
                             <td>{{ payment.payment_date.strftime('%d.%m.%Y') if payment.payment_date else '—' }}</td>
                             <td>{{ payment.comment or '—' }}</td>
                         </tr>

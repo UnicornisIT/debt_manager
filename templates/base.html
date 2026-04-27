@@ -142,15 +142,15 @@
                     </div>
                     <div class="col-md-6">
                         <label class="form-label">Общая сумма долга (₽) <span class="text-danger">*</span></label>
-                        <input type="text" inputmode="decimal" class="form-control number-format" id="f_total_amount" placeholder="0 000">
+                        <input type="text" inputmode="decimal" class="form-control number-format" id="f_total_amount" placeholder="0 000,00">
                     </div>
                     <div class="col-md-6">
                         <label class="form-label">Текущий остаток (₽) <span class="text-danger">*</span></label>
-                        <input type="text" inputmode="decimal" class="form-control number-format" id="f_remaining_amount" placeholder="0 000">
+                        <input type="text" inputmode="decimal" class="form-control number-format" id="f_remaining_amount" placeholder="0 000,00">
                     </div>
                     <div class="col-md-6">
                         <label class="form-label">Минимальный платеж (₽)</label>
-                        <input type="text" inputmode="decimal" class="form-control number-format" id="f_minimum_payment" placeholder="0 000">
+                        <input type="text" inputmode="decimal" class="form-control number-format" id="f_minimum_payment" placeholder="0 000,00">
                     </div>
                     <div class="col-md-6">
                         <label class="form-label">Процентная ставка (%/год)</label>
@@ -195,7 +195,7 @@
                 <div class="row g-3">
                     <div class="col-12">
                         <label class="form-label">Сумма платежа (₽) <span class="text-danger">*</span></label>
-                        <input type="number" class="form-control form-control-lg" id="pm_amount" min="0.01" step="0.01" placeholder="0.00">
+                        <input type="text" inputmode="decimal" class="form-control form-control-lg number-format" id="pm_amount" placeholder="0,00">
                         <div class="form-text">Минимальный платеж: <span id="pm_min_payment">—</span></div>
                     </div>
                     <div class="col-12">

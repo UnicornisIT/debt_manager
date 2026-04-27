@@ -16,7 +16,7 @@
         <div class="col-6 col-md-3">
             <div class="summary-card summary-card--danger">
                 <div class="summary-icon"><i class="bi bi-cash-stack"></i></div>
-                <div class="summary-value">{{ '{:,.0f}'.format(total_remaining).replace(',', ' ') }} ₽</div>
+                <div class="summary-value">{{ total_remaining|money }}</div>
                 <div class="summary-label">Общий остаток</div>
             </div>
         </div>
@@ -52,28 +52,28 @@
         <div class="col-12 col-lg-3">
             <div class="summary-card">
                 <div class="summary-icon"><i class="bi bi-cash-stack"></i></div>
-                <div class="summary-value">{{ '{:,.0f}'.format(total_incomes).replace(',', ' ') }} ₽</div>
+                <div class="summary-value">{{ total_incomes|money }}</div>
                 <div class="summary-label">Доходы за месяц</div>
             </div>
         </div>
         <div class="col-12 col-lg-3">
             <div class="summary-card summary-card--danger">
                 <div class="summary-icon"><i class="bi bi-wallet2"></i></div>
-                <div class="summary-value">{{ '{:,.0f}'.format(total_expenses).replace(',', ' ') }} ₽</div>
+                <div class="summary-value">{{ total_expenses|money }}</div>
                 <div class="summary-label">Расходы за месяц</div>
             </div>
         </div>
         <div class="col-12 col-lg-3">
             <div class="summary-card summary-card--warning">
                 <div class="summary-icon"><i class="bi bi-bank2"></i></div>
-                <div class="summary-value">{{ '{:,.0f}'.format(total_payments).replace(',', ' ') }} ₽</div>
+                <div class="summary-value">{{ total_payments|money }}</div>
                 <div class="summary-label">Платежи по долгам</div>
             </div>
         </div>
         <div class="col-12 col-lg-3">
             <div class="summary-card {% if free_balance >= 0 %}summary-card--ok{% else %}summary-card--danger{% endif %}">
                 <div class="summary-icon"><i class="bi bi-calculator"></i></div>
-                <div class="summary-value">{{ '{:,.0f}'.format(free_balance).replace(',', ' ') }} ₽</div>
+                <div class="summary-value">{{ free_balance|money }}</div>
                 <div class="summary-label">Свободные средства</div>
             </div>
         </div>
@@ -86,7 +86,7 @@
                 <div class="text-muted">До конца месяца</div>
                 <div class="fw-semibold">{{ days_left }} {{ 'день' if days_left == 1 else ('дня' if days_left in [2,3,4] else 'дней') }}</div>
             </div>
-            <div class="fw-semibold fs-4">{{ '{:,.0f}'.format(daily_budget).replace(',', ' ') }} ₽ в день</div>
+            <div class="fw-semibold fs-4">{{ daily_budget|money }} в день</div>
         </div>
     </div>
     <div class="col-12 col-md-6">
@@ -170,16 +170,16 @@
             </div>
             <div class="debt-card__progress-label">
                 <span>Погашено {{ paid_pct }}%</span>
-                <span>{{ '{:,.0f}'.format(debt.remaining_amount).replace(',', ' ') }} ₽ осталось</span>
+                <span>{{ debt.remaining_amount|money }} осталось</span>
             </div>
 
             <!-- Суммы -->
             <div class="debt-card__amounts">
                 <div class="debt-card__amount-main">
-                    {{ '{:,.0f}'.format(debt.remaining_amount).replace(',', ' ') }} ₽
+                    {{ debt.remaining_amount|money }}
                 </div>
                 <div class="debt-card__amount-total">
-                    из {{ '{:,.0f}'.format(debt.total_amount).replace(',', ' ') }} ₽
+                    из {{ debt.total_amount|money }}
                 </div>
             </div>
 
@@ -211,7 +211,7 @@
                 <div class="debt-card__detail">
                     <span class="detail-label"><i class="bi bi-arrow-repeat"></i> Мин. платеж</span>
                     <span class="detail-value">
-                        {% if debt.minimum_payment %}{{ '{:,.0f}'.format(debt.minimum_payment).replace(',', ' ') }} ₽{% else %}—{% endif %}
+                        {% if debt.minimum_payment %}{{ debt.minimum_payment|money }}{% else %}—{% endif %}
                     </span>
                 </div>
                 {% if debt.interest_rate %}

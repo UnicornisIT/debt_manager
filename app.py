@@ -1,9 +1,10 @@
 from flask import Flask, render_template, request, jsonify, redirect, url_for, Response, abort
 from flask_login import LoginManager, UserMixin, current_user, login_user, logout_user
+from flask_migrate import Migrate
 import re
 from collections import OrderedDict
 from datetime import datetime, date, timedelta
-from decimal import Decimal, InvalidOperation
+from decimal import Decimal, InvalidOperation, ROUND_HALF_UP
 from functools import wraps
 from io import StringIO
 import csv
@@ -44,12 +45,34 @@ def create_app():
     app = Flask(__name__)
     app.config.from_object(Config)
     db.init_app(app)
+    Migrate(app, db)
     login_manager.init_app(app)
     login_manager.login_view = 'login'
     return app
 
 
 app = create_app()
+import models  # noqa: F401
+
+
+def format_currency(value):
+    if value is None or (isinstance(value, str) and str(value).strip() == ''):
+        return '—'
+    try:
+        amount = Decimal(str(value))
+    except Exception:
+        return str(value)
+
+    if amount == amount.to_integral():
+        formatted = '{:,.0f}'.format(amount)
+        return formatted.replace(',', ' ') + ' ₽'
+
+    amount = amount.quantize(Decimal('0.01'), rounding=ROUND_HALF_UP)
+    formatted = '{:,.2f}'.format(amount).replace(',', ' ').replace('.', ',')
+    return formatted + ' ₽'
+
+
+app.jinja_env.filters['money'] = format_currency
 
 
 @login_manager.user_loader
@@ -185,104 +208,6 @@ def admin_required(view):
             return redirect(url_for('index'))
         return view(*args, **kwargs)
     return wrapper
-
-
-def ensure_db_schema():
-    from models import AppSetting, DictionaryEntry, ActivityLog, User
-
-    with app.app_context():
-        db.create_all()
-
-        def column_exists(table_name, column_name):
-            try:
-                result = db.session.execute(text("SHOW COLUMNS FROM `{}` LIKE :col".format(table_name)), {'col': column_name}).fetchone()
-                return bool(result)
-            except Exception:
-                return False
-
-        def add_column_if_missing(table_name, column_definition):
-            column_name = column_definition.split()[0].strip('`')
-            if not column_exists(table_name, column_name):
-                db.session.execute(text(f"ALTER TABLE `{table_name}` ADD COLUMN {column_definition}"))
-
-        def foreign_key_exists(table_name, column_name, referenced_table, referenced_column):
-            try:
-                result = db.session.execute(
-                    text(
-                        "SELECT COUNT(*) FROM information_schema.KEY_COLUMN_USAGE "
-                        "WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = :table_name "
-                        "AND COLUMN_NAME = :column_name AND REFERENCED_TABLE_NAME = :referenced_table "
-                        "AND REFERENCED_COLUMN_NAME = :referenced_column"
-                    ),
-                    {
-                        'table_name': table_name,
-                        'column_name': column_name,
-                        'referenced_table': referenced_table,
-                        'referenced_column': referenced_column,
-                    }
-                ).scalar()
-                return bool(result)
-            except Exception:
-                return False
-
-        try:
-            add_column_if_missing('users', 'created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP')
-            add_column_if_missing('users', "role ENUM('user','admin','superadmin') NOT NULL DEFAULT 'user'")
-            add_column_if_missing('users', 'is_blocked TINYINT(1) NOT NULL DEFAULT 0')
-            add_column_if_missing('users', 'last_login_ip VARCHAR(100) NULL')
-            add_column_if_missing('users', 'last_user_agent TEXT NULL')
-            add_column_if_missing('users', 'login_count INT NOT NULL DEFAULT 0')
-
-            add_column_if_missing('debts', 'user_id INT NULL')
-            add_column_if_missing('debts', 'created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP')
-            add_column_if_missing('debts', 'updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP')
-
-            if not foreign_key_exists('debts', 'user_id', 'users', 'id'):
-                db.session.execute(text("ALTER TABLE `debts` ADD CONSTRAINT `fk_debts_user_id` FOREIGN KEY (`user_id`) REFERENCES `users`(`id`) ON DELETE CASCADE"))
-
-            add_column_if_missing('payments', 'debt_id INT NULL')
-            add_column_if_missing('payments', 'remaining_after_payment DECIMAL(12, 2) NOT NULL DEFAULT 0')
-            add_column_if_missing('payments', 'created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP')
-            if not foreign_key_exists('payments', 'debt_id', 'debts', 'id'):
-                db.session.execute(text("ALTER TABLE `payments` ADD CONSTRAINT `fk_payments_debt_id` FOREIGN KEY (`debt_id`) REFERENCES `debts`(`id`) ON DELETE CASCADE"))
-
-            add_column_if_missing('incomes', 'user_id INT NULL')
-            add_column_if_missing('incomes', 'created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP')
-            if not foreign_key_exists('incomes', 'user_id', 'users', 'id'):
-                db.session.execute(text("ALTER TABLE `incomes` ADD CONSTRAINT `fk_incomes_user_id` FOREIGN KEY (`user_id`) REFERENCES `users`(`id`) ON DELETE CASCADE"))
-
-            add_column_if_missing('expenses', 'user_id INT NULL')
-            add_column_if_missing('expenses', 'created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP')
-            if not foreign_key_exists('expenses', 'user_id', 'users', 'id'):
-                db.session.execute(text("ALTER TABLE `expenses` ADD CONSTRAINT `fk_expenses_user_id` FOREIGN KEY (`user_id`) REFERENCES `users`(`id`) ON DELETE CASCADE"))
-
-            add_column_if_missing('app_settings', '`key` VARCHAR(100) NOT NULL UNIQUE')
-            add_column_if_missing('app_settings', 'value TEXT NULL')
-            add_column_if_missing('app_settings', 'description TEXT NULL')
-            add_column_if_missing('app_settings', 'created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP')
-            add_column_if_missing('app_settings', 'updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP')
-
-            add_column_if_missing('dictionary_entries', "dictionary_type ENUM('bank', 'debt_type', 'debt_category', 'status', 'comment_template', 'interest_rate', 'product_type') NOT NULL")
-            add_column_if_missing('dictionary_entries', 'value VARCHAR(150) NOT NULL')
-            add_column_if_missing('dictionary_entries', 'is_active TINYINT(1) NOT NULL DEFAULT 1')
-            add_column_if_missing('dictionary_entries', 'created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP')
-            add_column_if_missing('dictionary_entries', 'updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP')
-
-            add_column_if_missing('activity_logs', 'user_id INT NULL')
-            add_column_if_missing('activity_logs', 'action VARCHAR(100) NOT NULL')
-            add_column_if_missing('activity_logs', 'entity_type VARCHAR(50) NULL')
-            add_column_if_missing('activity_logs', 'entity_id INT NULL')
-            add_column_if_missing('activity_logs', 'description TEXT NULL')
-            add_column_if_missing('activity_logs', 'created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP')
-            if not foreign_key_exists('activity_logs', 'user_id', 'users', 'id'):
-                db.session.execute(text("ALTER TABLE `activity_logs` ADD CONSTRAINT `fk_activity_logs_user_id` FOREIGN KEY (`user_id`) REFERENCES `users`(`id`) ON DELETE SET NULL"))
-
-            db.session.commit()
-        except Exception:
-            db.session.rollback()
-
-
-ensure_db_schema()
 
 
 DICTIONARY_TYPES = [
@@ -1374,7 +1299,6 @@ def api_add_payment(debt_id):
 def init_db_route():
     """Инициализация БД и загрузка тестовых данных"""
     from models import Debt, Payment, Income, Expense
-    db.create_all()
     
     # Добавляем тестовые данные только если БД пустая
     if (
@@ -1539,7 +1463,4 @@ def seed_data():
 # ──────────────────────────────────────────────────────────────
 
 if __name__ == '__main__':
-    from models import Debt, Payment, Income, Expense  # Импортируем модели перед созданием таблиц
-    with app.app_context():
-        db.create_all()
     app.run(debug=True, host='0.0.0.0', port=5000)

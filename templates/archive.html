@@ -34,15 +34,15 @@
             </div>
             <div class="debt-card__progress-label">
                 <span>Погашено {{ paid_pct }}%</span>
-                <span>{{ '{:,.0f}'.format(debt.remaining_amount).replace(',', ' ') }} ₽ осталось</span>
+                <span>{{ debt.remaining_amount|money }} осталось</span>
             </div>
 
             <div class="debt-card__amounts">
                 <div class="debt-card__amount-main">
-                    {{ '{:,.0f}'.format(debt.remaining_amount).replace(',', ' ') }} ₽
+                    {{ debt.remaining_amount|money }}
                 </div>
                 <div class="debt-card__amount-total">
-                    из {{ '{:,.0f}'.format(debt.total_amount).replace(',', ' ') }} ₽
+                    из {{ debt.total_amount|money }}
                 </div>
             </div>
 

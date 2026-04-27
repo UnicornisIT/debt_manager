@@ -85,7 +85,7 @@
                                         {% for income in group['items'] %}
                                         <tr>
                                             <td>{{ dict(categories)[income.category] }}</td>
-                                            <td>{{ '{:,.0f}'.format(income.amount).replace(',', ' ') }} ₽</td>
+                                            <td>{{ income.amount|money }}</td>
                                             <td>{{ income.income_date.strftime('%d.%m.%Y') }}</td>
                                             <td>{{ income.source or '—' }}</td>
                                             <td>{{ income.comment or '—' }}</td>

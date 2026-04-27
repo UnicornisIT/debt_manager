@@ -134,15 +134,46 @@ DB_NAME=debt_manager
 ### 4. Создать базу данных MySQL
 
 ```bash
+mysql -u root -p -e "CREATE DATABASE IF NOT EXISTS debt_manager CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;"
+```
+
+Если вы хотите воспользоваться SQL-скриптом как резервным вариантом:
+
+```bash
 mysql -u root -p < init_db.sql
 ```
 
-Или интерактивно:
+> После создания базы данных применяйте схему через Flask-Migrate.
+>
+> Если база уже содержит таблицы из прежнего SQL-скрипта, сначала выполните `flask db stamp head`.
 
-```sql
-mysql -u root -p
-SOURCE /путь/к/init_db.sql;
+```bash
+# Linux / macOS
+export FLASK_APP=app.py
+flask db upgrade
+
+# Windows PowerShell
+$env:FLASK_APP = 'app.py'
+flask db upgrade
 ```
+
+### 4.1. Миграции базы данных
+
+После изменения моделей запускайте:
+
+```bash
+# Linux / macOS
+export FLASK_APP=app.py
+flask db migrate -m "Описание изменений"
+flask db upgrade
+
+# Windows PowerShell
+$env:FLASK_APP = 'app.py'
+flask db migrate -m "Описание изменений"
+flask db upgrade
+```
+
+Если в существующей базе данных уже есть таблицы, но ещё нет таблицы `alembic_version`, `deploy.sh` автоматически отметит текущую схему как соответствующую последней миграции.
 
 ### 5. Запустить приложение
 
@@ -283,7 +314,7 @@ POST /api/debts/1/payments
 bash deploy.sh
 ```
 
-Скрипт выполняет: `git pull` → `pip install` → `db.create_all()` → `systemctl restart debt_manager`.
+Скрипт выполняет: `git pull` → `pip install` → `flask db upgrade` → `systemctl restart debt_manager`.
 
 Пример конфигурации systemd-сервиса (`/etc/systemd/system/debt_manager.service`):
 
@@ -318,6 +349,7 @@ FLASK_DEBUG=1 python app.py
 |-------|--------|------------|
 | Flask | 3.0.3 | Веб-фреймворк |
 | Flask-SQLAlchemy | 3.1.1 | ORM |
+| Flask-Migrate | 4.0.4 | Управление миграциями базы данных |
 | Flask-Login | 0.6.3 | Управление сессиями |
 | PyMySQL | 1.1.1 | Драйвер MySQL |
 | python-dotenv | 1.0.1 | Загрузка `.env` |

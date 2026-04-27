@@ -45,20 +45,52 @@ function showToast(message, type = 'success') {
  */
 function formatMoney(n) {
     if (n == null) return '—';
-    return Number(n).toLocaleString('ru-RU', { maximumFractionDigits: 0 }) + ' ₽';
+    const normalized = String(n).replace(/\s+/g, '').replace(',', '.');
+    const value = Number(normalized);
+    if (Number.isNaN(value)) return '—';
+    const hasFraction = !Number.isInteger(value);
+    return value.toLocaleString('ru-RU', {
+        minimumFractionDigits: hasFraction ? 2 : 0,
+        maximumFractionDigits: 2,
+    }) + ' ₽';
 }
 
-function formatNumberInputValue(value) {
+function normalizeDecimalInput(value) {
     if (!value && value !== 0) return '';
     let text = String(value).replace(/\s+/g, '').replace(',', '.');
     const negative = text.startsWith('-');
     if (negative) text = text.slice(1);
     const parts = text.split('.');
     let integer = parts[0].replace(/[^0-9]/g, '');
-    const fraction = parts[1] || '';
+    let fraction = parts.slice(1).join('').replace(/[^0-9]/g, '');
+    if (integer === '') integer = '0';
+    if (fraction.length > 2) {
+        const parsed = Number(integer + '.' + fraction);
+        if (!Number.isNaN(parsed)) {
+            text = parsed.toFixed(2);
+            if (negative) text = '-' + text;
+            return text;
+        }
+    }
+    return (negative ? '-' : '') + integer + (fraction ? '.' + fraction : '');
+}
+
+function formatNumberInputValue(value) {
+    if (!value && value !== 0) return '';
+    let text = String(value).replace(/\s+/g, '');
+    const hasTrailingSeparator = /[.,]$/.test(text);
+    text = text.replace(/,/g, '.');
+    const negative = text.startsWith('-');
+    if (negative) text = text.slice(1);
+    const parts = text.split('.');
+    let integer = parts[0].replace(/[^0-9]/g, '');
+    let fraction = parts.slice(1).join('').replace(/[^0-9]/g, '');
     if (integer === '') integer = '0';
     integer = integer.replace(/\B(?=(\d{3})+(?!\d))/g, ' ');
-    return (negative ? '-' : '') + integer + (fraction ? '.' + fraction : '');
+    if (hasTrailingSeparator) {
+        return (negative ? '-' : '') + integer + ',';
+    }
+    return (negative ? '-' : '') + integer + (fraction ? ',' + fraction : '');
 }
 
 function setupNumberFormatInputs() {
@@ -71,6 +103,11 @@ function setupNumberFormatInputs() {
             if (typeof cursorPos === 'number') {
                 input.setSelectionRange(cursorPos + diff, cursorPos + diff);
             }
+        });
+
+        input.addEventListener('blur', () => {
+            const normalized = normalizeDecimalInput(input.value);
+            input.value = formatNumberInputValue(normalized);
         });
     });
 }
@@ -236,11 +273,13 @@ async function submitPayment() {
     const errEl = document.getElementById('paymentFormError');
     errEl.classList.add('d-none');
 
-    const amount = document.getElementById('pm_amount').value;
+    const rawAmount = document.getElementById('pm_amount').value;
+    const amount = rawAmount.replace(/\s+/g, '').replace(',', '.');
     const pmDate = document.getElementById('pm_date').value;
     const comment = document.getElementById('pm_comment').value.trim();
+    const parsedAmount = parseFloat(amount);
 
-    if (!amount || parseFloat(amount) <= 0) {
+    if (!amount || Number.isNaN(parsedAmount) || parsedAmount <= 0) {
         errEl.textContent = 'Введите корректную сумму платежа';
         errEl.classList.remove('d-none');
         return;

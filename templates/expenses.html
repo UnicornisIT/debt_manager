@@ -96,7 +96,7 @@
                                         <tr>
                                             <td>{{ expense.title }}</td>
                                             <td>{{ dict(categories)[expense.category] }}</td>
-                                            <td>{{ '{:,.0f}'.format(expense.amount).replace(',', ' ') }} ₽</td>
+                                            <td>{{ expense.amount|money }}</td>
                                             <td>{{ expense.expense_date.strftime('%d.%m.%Y') }}</td>
                                             <td>{{ dict(payment_methods).get(expense.payment_method, '—') }}</td>
                                             <td>{{ expense.comment or '—' }}</td>
