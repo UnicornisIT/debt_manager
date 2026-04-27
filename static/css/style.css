@@ -4,26 +4,6 @@
 ============================================================ */
 
 :root {
-    --bg:         #101724;
-    --bg-card:    #181f2b;
-    --bg-card-2:  #212b38;
-    --border:     #2f3a4b;
-    --border-hov: #3c4a63;
-    --text:       #e8eff8;
-    --text-muted: #9fb0c3;
-    --text-dim:   #6a7a8d;
-    --primary:    #6291ff;
-    --primary-dk: #3b6ff3;
-    --success:    #3da95d;
-    --warning:    #d8a62b;
-    --danger:     #f56764;
-    --orange:     #e68a4a;
-    --split-clr:  #b28cff;
-    --card-radius: 14px;
-    --transition:  0.18s ease;
-}
-
-:root[data-theme="light"], html[data-theme="light"] {
     --bg:          #f4f6fb;
     --bg-card:     #ffffff;
     --bg-card-2:   #f8fafc;
@@ -39,65 +19,16 @@
     --danger:      #dc2626;
     --orange:      #ea580c;
     --split-clr:   #8b5cf6;
+    --card-radius: 14px;
+    --transition:  0.18s ease;
 }
 
-html[data-theme="light"], :root[data-theme="light"] {
+body {
+    font-family: 'Onest', system-ui, sans-serif;
     background: var(--bg);
     color: var(--text);
-}
-
-html[data-theme="light"] body, :root[data-theme="light"] body {
-    background: var(--bg);
-    color: var(--text);
-}
-
-html[data-theme="light"] .navbar,
-html[data-theme="light"] .modal-content,
-html[data-theme="light"] .dropdown-menu,
-html[data-theme="light"] .toast,
-html[data-theme="light"] .alert,
-html[data-theme="light"] .form-control,
-html[data-theme="light"] .form-select {
-    color: var(--text) !important;
-}
-
-html[data-theme="light"] .navbar {
-    background: rgba(255, 255, 255, 0.92);
-    border-bottom: 1px solid var(--border);
-}
-
-html[data-theme="light"] .navbar .nav-link {
-    color: var(--text-muted) !important;
-}
-
-html[data-theme="light"] .navbar .nav-link:hover,
-html[data-theme="light"] .navbar .nav-link.active {
-    color: var(--text) !important;
-    background: var(--bg-card-2);
-}
-
-html[data-theme="light"] .brand-text,
-html[data-theme="light"] .brand-icon {
-    color: var(--text) !important;
-}
-
-html[data-theme="light"] .btn-close {
-    filter: invert(0) grayscale(0);
-}
-
-html[data-theme="light"] .toast {
-    background: var(--bg-card);
-    border-color: var(--border);
-}
-
-html[data-theme="light"] .history-table th,
-html[data-theme="light"] .history-table td {
-    color: var(--text) !important;
-}
-
-html[data-theme="light"] .form-select option {
-    background: var(--bg-card-2);
-    color: var(--text);
+    min-height: 100vh;
+    line-height: 1.6;
 }
 
 /* ── Reset & Base ── */
@@ -111,7 +42,7 @@ body {
     line-height: 1.6;
 }
 
-/* ── Bootstrap dark-mode overrides ── */
+/* ── Bootstrap overrides ── */
 body, .navbar, .modal-content, .dropdown-menu, .toast, .alert, .table, .table th, .table td, .form-control, .form-select, .form-label, .form-text, .dropdown-item, .page-link, .list-group-item, .card, .card-body, .card-header, .card-footer, .accordion-item, .accordion-button, .accordion-body, .breadcrumb-item {
     color: var(--text);
     background: transparent;
@@ -230,22 +161,6 @@ a:hover, a:focus {
     color: var(--text);
 }
 
-html[data-theme="dark"] .bg-white,
-html[data-theme="dark"] .bg-light {
-    background-color: var(--bg-card) !important;
-}
-
-html[data-theme="dark"] .bg-secondary,
-html[data-theme="dark"] .badge.bg-secondary {
-    background-color: rgba(255,255,255,0.08) !important;
-    color: var(--text) !important;
-}
-
-html[data-theme="dark"] .text-dark,
-html[data-theme="dark"] .text-black {
-    color: var(--text) !important;
-}
-
 /* ── Navbar ── */
 .navbar {
     background: rgba(13, 17, 23, 0.95);
@@ -327,13 +242,6 @@ html[data-theme="dark"] .text-black {
 .btn-outline-warning:hover { background: rgba(216,166,43,0.14); color: var(--text); border-color: var(--warning); }
 .btn-outline-info:hover { background: rgba(98,145,255,0.14); color: var(--text); border-color: var(--primary); }
 .btn-ghost:hover { background: var(--bg-card-2); color: var(--text); border-color: var(--border-hov); }
-
-.btn-theme {
-    min-width: 42px;
-    padding: 6px 10px;
-    font-size: 0.9rem;
-    color: var(--text);
-}
 
 /* ── Page title ── */
 .page-title {

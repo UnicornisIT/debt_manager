@@ -118,8 +118,7 @@ def require_login():
 def inject_user():
     app_name = get_setting('app_name', 'ДолгТрекер')
     bank_options = get_dictionary_values('bank')
-    hide_theme_toggle = get_setting('hide_theme_toggle', 'false') == 'true'
-    return dict(current_user=current_user, app_name=app_name, bank_options=bank_options, hide_theme_toggle=hide_theme_toggle)
+    return dict(current_user=current_user, app_name=app_name, bank_options=bank_options)
 
 
 # ──────────────────────────────────────────────────────────────
@@ -262,7 +261,6 @@ DEFAULT_SETTINGS = {
     'payment_warning_days': '7',
     'urgent_payment_days': '3',
     'overdue_after_date': 'true',
-    'hide_theme_toggle': 'false',
 }
 
 
@@ -524,7 +522,7 @@ def admin_settings():
     if request.method == 'POST':
         for key in DEFAULT_SETTINGS.keys():
             value = request.form.get(key, '').strip()
-            if key in ('registration_enabled', 'telegram_login_enabled', 'archive_enabled', 'export_enabled', 'overdue_after_date', 'hide_theme_toggle'):
+            if key in ('registration_enabled', 'telegram_login_enabled', 'archive_enabled', 'export_enabled', 'overdue_after_date'):
                 value = 'true' if value == 'on' or value.lower() in ('1', 'true', 'yes', 'on') else 'false'
             if not value:
                 value = DEFAULT_SETTINGS.get(key, '')

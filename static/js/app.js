@@ -112,27 +112,6 @@ function setupNumberFormatInputs() {
     });
 }
 
-function applyTheme(theme) {
-    document.documentElement.setAttribute('data-theme', theme);
-    document.documentElement.dataset.theme = theme;
-    if (document.body) document.body.dataset.theme = theme;
-    localStorage.setItem('debtTheme', theme);
-    const btn = document.getElementById('themeToggleBtn');
-    if (!btn) return;
-    if (theme === 'light') {
-        btn.innerHTML = '<i class="bi bi-sun-fill"></i>';
-        btn.title = 'Светлая тема';
-    } else {
-        btn.innerHTML = '<i class="bi bi-moon-stars-fill"></i>';
-        btn.title = 'Тёмная тема';
-    }
-}
-
-function toggleTheme() {
-    const current = document.documentElement.dataset.theme || document.documentElement.getAttribute('data-theme') || 'light';
-    applyTheme(current === 'light' ? 'dark' : 'light');
-}
-
 /**
  * Очищает форму долга
  */
@@ -445,9 +424,6 @@ function getNextDay(dateStr) {
 // ══════════════════════════════════════════════════════════
 
 document.addEventListener('DOMContentLoaded', () => {
-    const savedTheme = localStorage.getItem('debtTheme') || 'light';
-    applyTheme(savedTheme);
-
     // Сбросить форму при закрытии модалки долга
     debtModalEl.addEventListener('hidden.bs.modal', clearDebtForm);
 
