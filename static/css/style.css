@@ -164,10 +164,54 @@ a:hover, a:focus {
 
 .table {
     background: transparent;
+    color: var(--text);
+}
+
+.table thead th {
+    background: var(--bg-card-2);
+    color: var(--text);
+    border-color: var(--border);
+}
+
+.table tbody tr {
+    background: var(--bg-card);
+}
+
+.table.table-striped tbody tr:nth-of-type(odd) {
+    background-color: var(--bg-card-2);
+}
+
+.table.table-hover tbody tr:hover {
+    background-color: var(--bg-card-2);
 }
 
 .table th, .table td {
     border-color: var(--border);
+    color: var(--text);
+}
+
+.alert {
+    background: var(--bg-card);
+    border-color: var(--border);
+    color: var(--text);
+}
+
+.alert-success {
+    background: rgba(61,169,93,0.14);
+    border-color: rgba(61,169,93,0.32);
+    color: var(--text);
+}
+
+.alert-danger {
+    background: rgba(245,103,100,0.14);
+    border-color: rgba(245,103,100,0.32);
+    color: var(--text);
+}
+
+.alert-warning {
+    background: rgba(216,166,43,0.14);
+    border-color: rgba(216,166,43,0.32);
+    color: var(--text);
 }
 
 .dropdown-menu {
@@ -184,6 +228,22 @@ a:hover, a:focus {
 .page-link:focus {
     background: var(--bg-card-2);
     color: var(--text);
+}
+
+html[data-theme="dark"] .bg-white,
+html[data-theme="dark"] .bg-light {
+    background-color: var(--bg-card) !important;
+}
+
+html[data-theme="dark"] .bg-secondary,
+html[data-theme="dark"] .badge.bg-secondary {
+    background-color: rgba(255,255,255,0.08) !important;
+    color: var(--text) !important;
+}
+
+html[data-theme="dark"] .text-dark,
+html[data-theme="dark"] .text-black {
+    color: var(--text) !important;
 }
 
 /* ── Navbar ── */
@@ -630,11 +690,38 @@ a:hover, a:focus {
     font-family: inherit;
     transition: var(--transition);
 }
+.form-control::placeholder,
+.form-select option {
+    color: var(--text-dim);
+}
 .form-control:focus, .form-select:focus {
     background: var(--bg-card-2);
     border-color: var(--primary);
     color: var(--text) !important;
     box-shadow: 0 0 0 3px rgba(47,129,247,0.15);
+}
+.form-control[type="date"],
+.form-control[type="datetime-local"],
+.form-control[type="time"],
+.form-control[type="number"] {
+    color: var(--text);
+}
+.form-control.form-control-lg,
+.form-control.form-control-sm,
+textarea.form-control {
+    background: var(--bg-card-2);
+}
+.form-check-input {
+    background: var(--bg-card-2);
+    border: 1px solid var(--border);
+    color: var(--text);
+}
+.form-check-input:checked {
+    background-color: var(--primary);
+    border-color: var(--primary);
+}
+.form-check-label {
+    color: var(--text);
 }
 .modal-content .form-control,
 .modal-content .form-select,
