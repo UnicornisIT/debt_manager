@@ -9,6 +9,28 @@
     </div>
 </div>
 
+<form method="get" action="{{ url_for('finance') }}" class="row g-3 align-items-end mb-4">
+    <div class="col-auto">
+        <label class="form-label">Месяц</label>
+        <select class="form-select" name="month">
+            {% for number, name in month_options %}
+            <option value="{{ number }}" {% if number == selected_month %}selected{% endif %}>{{ name }}</option>
+            {% endfor %}
+        </select>
+    </div>
+    <div class="col-auto">
+        <label class="form-label">Год</label>
+        <select class="form-select" name="year">
+            {% for year in year_options %}
+            <option value="{{ year }}" {% if year == selected_year %}selected{% endif %}>{{ year }}</option>
+            {% endfor %}
+        </select>
+    </div>
+    <div class="col-auto">
+        <button type="submit" class="btn btn-primary">Показать</button>
+    </div>
+</form>
+
 <div class="summary-bar mb-4">
     <div class="row g-3">
         <div class="col-6 col-md-3">
@@ -135,6 +157,10 @@
         </div>
     </div>
 </div>
+
+{% if not (incomes_this_month or expenses_this_month or payments_this_month) %}
+<div class="alert alert-info">За {{ month_start.strftime('%m.%Y') }} нет операций по доходам, расходам или платежам.</div>
+{% endif %}
 
 <div class="card p-4">
     <h5 class="mb-3">Текущие доходы и расходы</h5>

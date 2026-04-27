@@ -303,12 +303,19 @@ def next_month_start(current_date):
     return date(next_year, next_month, 1)
 
 
-def get_finance_summary(user_id):
+def get_finance_summary(user_id, year=None, month=None):
     from models import Debt, Income, Expense, Payment
 
     today = date.today()
-    month_start = date(today.year, today.month, 1)
-    month_end = next_month_start(today)
+    use_selected_month = year is not None and month is not None
+    if use_selected_month:
+        try:
+            month_start = date(int(year), int(month), 1)
+        except (TypeError, ValueError):
+            month_start = date(today.year, today.month, 1)
+    else:
+        month_start = date(today.year, today.month, 1)
+    month_end = next_month_start(month_start)
 
     active_debts = Debt.query.filter_by(status='active', user_id=user_id).order_by(db.case((Debt.next_payment_date.is_(None), 1), else_=0), Debt.next_payment_date.asc()).all()
     total_remaining = sum(float(d.remaining_amount) for d in active_debts)
@@ -318,7 +325,7 @@ def get_finance_summary(user_id):
     expenses_this_month = Expense.query.filter_by(user_id=user_id).filter(Expense.expense_date >= month_start, Expense.expense_date < month_end).all()
     payments_this_month = Payment.query.join(Debt).filter(Debt.user_id == user_id, Payment.payment_date >= month_start, Payment.payment_date < month_end).all()
 
-    if not (incomes_this_month or expenses_this_month or payments_this_month):
+    if not use_selected_month and not (incomes_this_month or expenses_this_month or payments_this_month):
         latest_income = Income.query.with_entities(func.max(Income.income_date)).filter_by(user_id=user_id).scalar()
         latest_expense = Expense.query.with_entities(func.max(Expense.expense_date)).filter_by(user_id=user_id).scalar()
         latest_payment = Payment.query.join(Debt).with_entities(func.max(Payment.payment_date)).filter(Debt.user_id == user_id).scalar()
@@ -338,6 +345,11 @@ def get_finance_summary(user_id):
     archived_count = Debt.query.filter_by(status='archived', user_id=user_id).count()
     total_debts = Debt.query.filter_by(user_id=user_id).count()
 
+    if month_start.year == today.year and month_start.month == today.month:
+        days_left = (month_end - today).days
+    else:
+        days_left = 0
+
     nearest_debt = next((d for d in active_debts if d.next_payment_date and d.next_payment_date >= today), None)
 
     return {
@@ -354,11 +366,13 @@ def get_finance_summary(user_id):
         'total_expenses': total_expenses,
         'total_payments': total_payments,
         'free_balance': free_balance,
-        'days_left': (month_end - today).days,
+        'days_left': days_left,
         'nearest_debt': nearest_debt,
         'overdue_count': overdue_count,
         'archived_count': archived_count,
         'total_debts': total_debts,
+        'selected_year': month_start.year,
+        'selected_month': month_start.month,
     }
 
 
@@ -796,7 +810,22 @@ def index():
 
 @app.route('/finance')
 def finance():
-    summary = get_finance_summary(current_user.id)
+    selected_year = request.args.get('year', type=int)
+    selected_month = request.args.get('month', type=int)
+    summary = get_finance_summary(current_user.id, selected_year, selected_month)
+
+    today = date.today()
+    year_options = [today.year - i for i in range(0, 5)]
+    if summary['selected_year'] not in year_options:
+        year_options.append(summary['selected_year'])
+        year_options.sort(reverse=True)
+
+    month_names = [
+        'Январь', 'Февраль', 'Март', 'Апрель', 'Май', 'Июнь',
+        'Июль', 'Август', 'Сентябрь', 'Октябрь', 'Ноябрь', 'Декабрь'
+    ]
+    month_options = list(enumerate(month_names, start=1))
+
     return render_template('finance.html',
         active_count=len(summary['active_debts']),
         total_remaining=summary['total_remaining'],
@@ -816,6 +845,10 @@ def finance():
         incomes_this_month=summary['incomes_this_month'],
         expenses_this_month=summary['expenses_this_month'],
         payments_this_month=summary['payments_this_month'],
+        selected_year=summary['selected_year'],
+        selected_month=summary['selected_month'],
+        year_options=year_options,
+        month_options=month_options,
     )
 
 
