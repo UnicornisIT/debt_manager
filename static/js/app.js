@@ -40,6 +40,38 @@ function showToast(message, type = 'success') {
     bsToast.show();
 }
 
+function applyTheme(theme) {
+    document.documentElement.dataset.theme = theme;
+    localStorage.setItem('debtManagerTheme', theme);
+
+    const btn = document.getElementById('themeToggleBtn');
+    if (!btn) return;
+
+    if (theme === 'dark') {
+        btn.innerHTML = '<i class="bi bi-sun-fill"></i> Светлая тема';
+        btn.title = 'Переключиться в светлую тему';
+    } else {
+        btn.innerHTML = '<i class="bi bi-moon-fill"></i> Тёмная тема';
+        btn.title = 'Переключиться в тёмную тему';
+    }
+}
+
+function toggleTheme() {
+    const current = document.documentElement.dataset.theme || 'light';
+    applyTheme(current === 'dark' ? 'light' : 'dark');
+}
+
+function initThemeToggle() {
+    const storedTheme = localStorage.getItem('debtManagerTheme');
+    const initialTheme = storedTheme === 'dark' ? 'dark' : 'light';
+    applyTheme(initialTheme);
+
+    const btn = document.getElementById('themeToggleBtn');
+    if (btn) {
+        btn.addEventListener('click', toggleTheme);
+    }
+}
+
 /**
  * Форматирует число как валюту
  */
@@ -112,6 +144,25 @@ function setupNumberFormatInputs() {
     });
 }
 
+function setupRequiredFieldIndicators() {
+    const requiredFields = document.querySelectorAll('input[required], select[required], textarea[required]');
+    const updateIndicator = field => {
+        const wrapper = field.closest('.mb-3, .col-md-6, .col-12, .form-group') || field.parentElement;
+        const labelIndicator = wrapper?.querySelector('.form-label .required-indicator');
+        if (!labelIndicator) return;
+        const valid = field.checkValidity() && String(field.value).trim() !== '';
+        labelIndicator.textContent = valid ? '✓' : '*';
+        labelIndicator.classList.toggle('required-valid', valid);
+    };
+
+    requiredFields.forEach(field => {
+        updateIndicator(field);
+        field.addEventListener('input', () => updateIndicator(field));
+        field.addEventListener('change', () => updateIndicator(field));
+        field.addEventListener('blur', () => updateIndicator(field));
+    });
+}
+
 /**
  * Очищает форму долга
  */
@@ -125,6 +176,11 @@ function clearDebtForm() {
     if (sel) sel.value = '';
     document.getElementById('debtFormError').classList.add('d-none');
     currentDebtId = null;
+
+    const requiredFields = document.querySelectorAll('#debtModal input[required], #debtModal select[required], #debtModal textarea[required]');
+    requiredFields.forEach(field => {
+        field.dispatchEvent(new Event('input'));
+    });
 }
 
 // ══════════════════════════════════════════════════════════
@@ -136,6 +192,32 @@ function openAddModal() {
     document.getElementById('debtModalTitle').textContent = 'Новый долг';
     document.getElementById('debtSaveBtn').textContent = 'Добавить';
     debtModal.show();
+}
+
+function fillDebtSampleData() {
+    const sampleDate = new Date();
+    sampleDate.setDate(sampleDate.getDate() + 7);
+    const formattedDate = sampleDate.toISOString().slice(0, 10);
+
+    const sampleData = {
+        f_bank_name: 'Тинькофф',
+        f_debt_type: 'credit_card',
+        f_product_name: 'Tinkoff Platinum',
+        f_total_amount: '125000',
+        f_remaining_amount: '83250',
+        f_minimum_payment: '2350',
+        f_interest_rate: '12.5',
+        f_next_payment_date: formattedDate,
+        f_comment: 'Тестовая запись для проверки отображения всех полей'
+    };
+
+    Object.entries(sampleData).forEach(([id, value]) => {
+        const el = document.getElementById(id);
+        if (!el) return;
+        el.value = value;
+        el.dispatchEvent(new Event('input'));
+        el.dispatchEvent(new Event('change'));
+    });
 }
 
 async function openEditModal(debtId) {
@@ -358,17 +440,19 @@ async function openHistoryModal(debtId, title) {
         `).join('');
 
         document.getElementById('historyContent').innerHTML = `
-            <table class="history-table">
-                <thead>
-                    <tr>
-                        <th>Дата</th>
-                        <th>Сумма</th>
-                        <th>Остаток после</th>
-                        <th>Комментарий</th>
-                    </tr>
-                </thead>
-                <tbody>${rows}</tbody>
-            </table>
+            <div class="table-responsive history-table-wrapper">
+                <table class="history-table">
+                    <thead>
+                        <tr>
+                            <th>Дата</th>
+                            <th>Сумма</th>
+                            <th>Остаток после</th>
+                            <th>Комментарий</th>
+                        </tr>
+                    </thead>
+                    <tbody>${rows}</tbody>
+                </table>
+            </div>
         `;
     } catch (err) {
         document.getElementById('historyContent').innerHTML =
@@ -435,8 +519,12 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
+    // Установка темы интерфейса
+    initThemeToggle();
+
     // Форматирование входных сумм
     setupNumberFormatInputs();
+    setupRequiredFieldIndicators();
 
     // Анимация карточек при загрузке
     const cards = document.querySelectorAll('.debt-card');

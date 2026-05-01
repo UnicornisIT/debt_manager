@@ -1,0 +1,80 @@
+{% extends 'base.html' %}
+{% block title %}Просрочка по ипотеке — Менеджер долгов{% endblock %}
+
+{% block content %}
+<div class="d-flex align-items-center justify-content-between gap-3 mb-4">
+    <div>
+        <h1 class="page-title mb-1"><i class="bi bi-clock-history text-danger me-2"></i>Просрочка по ипотеке</h1>
+        <p class="text-muted mb-0">Расчёт санкций по процентам за каждый день просрочки.</p>
+    </div>
+    <a class="btn btn-outline-secondary" href="/mortgages">
+        <i class="bi bi-arrow-left me-1"></i>Назад к ипотеке
+    </a>
+</div>
+
+{% if error %}
+<div class="alert alert-danger">{{ error }}</div>
+{% else %}
+<div class="card p-4 mb-4">
+    <div class="row g-3">
+        <div class="col-12 col-md-6">
+            <div class="info-box">
+                <div class="info-box-title">Банк / продукт</div>
+                <div class="info-box-value">{{ debt.bank_name }} — {{ debt.product_name }}</div>
+            </div>
+        </div>
+        <div class="col-12 col-md-6">
+            <div class="info-box">
+                <div class="info-box-title">Остаток задолженности</div>
+                <div class="info-box-value">{{ debt.remaining_amount|money }}</div>
+            </div>
+        </div>
+        <div class="col-12 col-md-6">
+            <div class="info-box">
+                <div class="info-box-title">Процентная ставка</div>
+                <div class="info-box-value">{{ annual_rate }}% годовых</div>
+            </div>
+        </div>
+        <div class="col-12 col-md-6">
+            <div class="info-box">
+                <div class="info-box-title">Дней просрочки</div>
+                <div class="info-box-value">{{ overdue_days }} дн.</div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="card p-4 mb-4">
+    <h5>Начисление процентов</h5>
+    <p>В соответствии с установленной ставкой {{ annual_rate }}% годовых, расчёт ведётся по дневной ставке <strong>{{ daily_rate|round(4) }}%</strong> от остатка задолженности.</p>
+    <div class="row g-3 mt-3">
+        <div class="col-12 col-md-4">
+            <div class="info-box">
+                <div class="info-box-title">Начислено в день</div>
+                <div class="info-box-value">{{ interest_per_day|money }}</div>
+            </div>
+        </div>
+        <div class="col-12 col-md-4">
+            <div class="info-box">
+                <div class="info-box-title">Всего начислено</div>
+                <div class="info-box-value">{{ total_overdue_interest|money }}</div>
+            </div>
+        </div>
+        <div class="col-12 col-md-4">
+            <div class="info-box">
+                <div class="info-box-title">Итого к оплате</div>
+                <div class="info-box-value">{{ total_with_overdue|money }}</div>
+            </div>
+        </div>
+    </div>
+    <div class="alert alert-warning mt-4">
+        <strong>Важно:</strong> за каждый день просрочки применяется ежедневная часть годовой ставки. Размер санкций рассчитывается как <em>остаток × {{ daily_rate|round(4) }}% × количество дней просрочки</em>.
+    </div>
+</div>
+
+<div class="card p-4">
+    <h5>Условия</h5>
+    <p class="text-muted mb-0">Этот расчёт предназначен для демонстрационного стенда. В реальном договоре условия могут определяться отдельно и зависеть от правил кредитора и закона о потребительском кредитовании.</p>
+</div>
+{% endif %}
+{% endblock %}

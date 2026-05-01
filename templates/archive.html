@@ -23,6 +23,8 @@
                 <div class="debt-card__badge">
                     {% if debt.debt_type == 'credit_card' %}
                     <span class="badge-type badge-type--card"><i class="bi bi-credit-card"></i> Карта</span>
+                    {% elif debt.debt_type == 'mortgage' %}
+                    <span class="badge-type badge-type--mortgage"><i class="bi bi-bank2"></i> Ипотека</span>
                     {% else %}
                     <span class="badge-type badge-type--split"><i class="bi bi-scissors"></i> Сплит</span>
                     {% endif %}

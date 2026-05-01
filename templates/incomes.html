@@ -15,36 +15,40 @@
 {% if error_message %}
 <div class="alert alert-danger">{{ error_message }}</div>
 {% endif %}
+{% if current_user.is_local_test_user %}
+<div class="alert alert-info">Примерная история доходов показана только в локальном тестовом режиме. Сохранение и редактирование отключены.</div>
+{% endif %}
 
 <div class="row g-4">
     <div class="col-lg-5">
         <div class="card p-4 h-100">
             <h5 class="mb-3">{{ 'Редактировать доход' if edit_income else 'Добавить доход' }}</h5>
+            {% set selected_category = form_data.get('category') if form_data else (edit_income.category if edit_income else '') %}
             <form method="post" novalidate action="{{ url_for('edit_income', income_id=edit_income.id) if edit_income else url_for('incomes') }}">
                 <div class="mb-3">
-                    <label class="form-label">Категория</label>
+                    <label class="form-label"><span class="required-indicator">*</span>Категория</label>
                     <select class="form-select" name="category" required>
                         <option value="">— выберите —</option>
                         {% for key, label in categories %}
-                        <option value="{{ key }}" {% if edit_income and edit_income.category == key %}selected{% endif %}>{{ label }}</option>
+                        <option value="{{ key }}" {% if selected_category == key %}selected{% endif %}>{{ label }}</option>
                         {% endfor %}
                     </select>
                 </div>
                 <div class="mb-3">
-                    <label class="form-label">Сумма (₽)</label>
-                    <input type="text" inputmode="decimal" name="amount" class="form-control number-format" required value="{{ edit_income.amount if edit_income else '' }}">
+                    <label class="form-label"><span class="required-indicator">*</span>Сумма (₽)</label>
+                    <input type="text" inputmode="decimal" name="amount" class="form-control number-format" required value="{{ form_data.get('amount', edit_income.amount if edit_income else '') }}">
                 </div>
                 <div class="mb-3">
-                    <label class="form-label">Дата</label>
-                    <input type="date" name="income_date" class="form-control" required value="{{ edit_income.income_date.strftime('%Y-%m-%d') if edit_income else '' }}">
+                    <label class="form-label"><span class="required-indicator">*</span>Дата</label>
+                    <input type="date" name="income_date" class="form-control" required value="{{ form_data.get('income_date', edit_income.income_date.strftime('%Y-%m-%d') if edit_income else '') }}">
                 </div>
                 <div class="mb-3">
                     <label class="form-label">Источник</label>
-                    <input type="text" name="source" class="form-control" placeholder="Основная работа, дивиденды..." value="{{ edit_income.source if edit_income else '' }}">
+                    <input type="text" name="source" class="form-control" placeholder="Основная работа, дивиденды..." value="{{ form_data.get('source', edit_income.source if edit_income else '') }}">
                 </div>
                 <div class="mb-3">
                     <label class="form-label">Комментарий</label>
-                    <textarea name="comment" class="form-control" rows="3" placeholder="Зарплата за апрель">{{ edit_income.comment if edit_income else '' }}</textarea>
+                    <textarea name="comment" class="form-control" rows="3" placeholder="Зарплата за апрель">{{ form_data.get('comment', edit_income.comment if edit_income else '') }}</textarea>
                 </div>
                 <div class="d-flex gap-2 align-items-center">
                     <button type="submit" class="btn btn-success">{{ 'Сохранить изменения' if edit_income else 'Сохранить доход' }}</button>
@@ -78,7 +82,9 @@
                                             <th>Дата</th>
                                             <th>Источник</th>
                                             <th>Комментарий</th>
+                                            {% if not current_user.is_local_test_user %}
                                             <th class="text-end">Действия</th>
+                                            {% endif %}
                                         </tr>
                                     </thead>
                                     <tbody>
@@ -89,12 +95,14 @@
                                             <td>{{ income.income_date.strftime('%d.%m.%Y') }}</td>
                                             <td>{{ income.source or '—' }}</td>
                                             <td>{{ income.comment or '—' }}</td>
+                                            {% if not current_user.is_local_test_user %}
                                             <td class="text-end">
                                                 <a href="{{ url_for('edit_income', income_id=income.id) }}" class="btn btn-sm btn-outline-primary me-1">Изм.</a>
                                                 <form method="post" action="{{ url_for('delete_income', income_id=income.id) }}" class="d-inline" onsubmit="return confirm('Удалить этот доход?');">
                                                     <button type="submit" class="btn btn-sm btn-outline-danger">Удалить</button>
                                                 </form>
                                             </td>
+                                            {% endif %}
                                         </tr>
                                         {% endfor %}
                                     </tbody>

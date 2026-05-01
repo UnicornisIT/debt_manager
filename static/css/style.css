@@ -23,12 +23,31 @@
     --transition:  0.18s ease;
 }
 
+:root[data-theme="dark"] {
+    --bg:          #08101c;
+    --bg-card:     #111827;
+    --bg-card-2:   #1f2937;
+    --border:      rgba(255,255,255,0.08);
+    --border-hov:  rgba(255,255,255,0.18);
+    --text:        #e2e8f0;
+    --text-muted:  #94a3b8;
+    --text-dim:    #cbd5e1;
+    --primary:     #60a5fa;
+    --primary-dk:  #3b82f6;
+    --success:     #34d399;
+    --warning:     #fbbf24;
+    --danger:      #f87171;
+    --orange:      #fb923c;
+    --split-clr:   #c084fc;
+}
+
 body {
     font-family: 'Onest', system-ui, sans-serif;
     background: var(--bg);
     color: var(--text);
     min-height: 100vh;
     line-height: 1.6;
+    transition: background var(--transition), color var(--transition);
 }
 
 /* ── Reset & Base ── */
@@ -163,13 +182,16 @@ a:hover, a:focus {
 
 /* ── Navbar ── */
 .navbar {
-    background: rgba(13, 17, 23, 0.95);
-    backdrop-filter: blur(12px);
+    background: rgba(255,255,255,0.92);
+    backdrop-filter: blur(14px);
     border-bottom: 1px solid var(--border);
     padding: 0.75rem 0;
     position: sticky;
     top: 0;
     z-index: 1000;
+}
+html[data-theme="dark"] .navbar {
+    background: rgba(7, 12, 21, 0.92);
 }
 .brand-icon {
     display: inline-flex;
@@ -232,11 +254,11 @@ a:hover, a:focus {
 .btn-outline-light {
     color: var(--text);
     background: transparent;
-    border-color: rgba(255,255,255,0.18);
+    border-color: var(--border);
     transition: var(--transition);
 }
 .btn-outline-primary:hover { background: rgba(98,145,255,0.14); color: var(--text); border-color: var(--primary); }
-.btn-outline-secondary:hover { background: rgba(159,176,195,0.14); color: var(--text); border-color: rgba(255,255,255,0.22); }
+.btn-outline-secondary:hover { background: rgba(148,163,184,0.16); color: var(--text); border-color: var(--border-hov); }
 .btn-outline-success:hover { background: rgba(61,169,93,0.14); color: var(--text); border-color: var(--success); }
 .btn-outline-danger:hover { background: rgba(245,103,100,0.14); color: var(--text); border-color: var(--danger); }
 .btn-outline-warning:hover { background: rgba(216,166,43,0.14); color: var(--text); border-color: var(--warning); }
@@ -281,6 +303,22 @@ a:hover, a:focus {
 .summary-icon { font-size: 1.4rem; color: var(--text-muted); margin-bottom: 2px; }
 .summary-value { font-size: 1.5rem; font-weight: 700; letter-spacing: -0.03em; line-height: 1.2; }
 .summary-label { font-size: 0.78rem; color: var(--text-muted); font-weight: 500; text-transform: uppercase; letter-spacing: 0.04em; }
+
+.mortgage-summary-card {
+    min-width: 240px;
+    max-width: 320px;
+    flex: 0 0 280px;
+}
+.mortgage-summary-row {
+    overflow-x: auto;
+}
+.mortgage-summary-row::-webkit-scrollbar {
+    height: 6px;
+}
+.mortgage-summary-row::-webkit-scrollbar-thumb {
+    background: rgba(0,0,0,0.12);
+    border-radius: 999px;
+}
 
 /* ══════════════════════════════════════════════════════════
    ФИЛЬТРЫ
@@ -389,6 +427,7 @@ a:hover, a:focus {
 }
 .badge-type--card  { background: rgba(47,129,247,0.15); color: var(--primary); border: 1px solid rgba(47,129,247,0.3); }
 .badge-type--split { background: rgba(188,140,255,0.15); color: var(--split-clr); border: 1px solid rgba(188,140,255,0.3); }
+.badge-type--mortgage { background: rgba(64, 143, 92, 0.12); color: #2e7d32; border: 1px solid rgba(64, 143, 92, 0.25); }
 
 /* Progress */
 .debt-card__progress-wrap {
@@ -470,32 +509,63 @@ a:hover, a:focus {
 /* Action buttons */
 .debt-card__actions {
     display: flex;
-    gap: 6px;
+    justify-content: flex-start;
+    gap: 8px;
     flex-wrap: wrap;
     margin-top: auto;
-    padding-top: 0.9rem;
+    padding-top: 1rem;
     border-top: 1px solid var(--border);
+}
+.debt-card__actions-left,
+.debt-card__actions-right {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    align-items: center;
+}
+.debt-card__actions-right {
+    margin-left: 0;
 }
 .btn-action {
     display: inline-flex;
     align-items: center;
-    gap: 4px;
-    padding: 5px 10px;
-    border-radius: 8px;
-    font-size: 0.8rem;
+    justify-content: center;
+    gap: 5px;
+    padding: 7px 12px;
+    border-radius: 10px;
+    font-size: 0.84rem;
     font-weight: 600;
     border: 1px solid transparent;
     cursor: pointer;
     transition: var(--transition);
     white-space: nowrap;
+    min-height: 38px;
 }
 .btn-action--pay {
-    background: rgba(63,185,80,0.12);
-    color: var(--success);
-    border-color: rgba(63,185,80,0.25);
-    flex: 1;
+    background: var(--success);
+    color: #fff;
+    border-color: transparent;
 }
-.btn-action--pay:hover { background: var(--success); color: #fff; }
+.btn-action--pay:hover { background: #2d9b4d; }
+.btn-action--info {
+    background: rgba(47,129,247,0.08);
+    color: var(--primary);
+    border-color: rgba(47,129,247,0.2);
+}
+.btn-action--outline {
+    background: transparent;
+    color: var(--primary);
+}
+.btn-action--info.btn-action--outline {
+    background: rgba(47,129,247,0.06);
+    border-color: rgba(47,129,247,0.28);
+}
+.btn-action--info:hover,
+.btn-action--info.btn-action--outline:hover {
+    background: rgba(47,129,247,0.18);
+    color: #fff;
+    border-color: transparent;
+}
 .btn-action--edit {
     background: rgba(47,129,247,0.1);
     color: var(--primary);
@@ -608,6 +678,20 @@ a:hover, a:focus {
     color: var(--text) !important;
     box-shadow: 0 0 0 3px rgba(47,129,247,0.15);
 }
+
+.required-indicator {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 1.1rem;
+    margin-right: 0.25rem;
+    color: var(--danger);
+    font-weight: 700;
+}
+
+.required-indicator.required-valid {
+    color: var(--success);
+}
 .form-control[type="date"],
 .form-control[type="datetime-local"],
 .form-control[type="time"],
@@ -644,9 +728,19 @@ textarea.form-control {
 .form-select option { background: var(--bg-card-2); }
 
 /* ── История платежей в модалке ── */
+.history-table-wrapper {
+    overflow-x: auto;
+    width: 100%;
+}
 .history-table {
     width: 100%;
+    min-width: 640px;
     font-size: 0.88rem;
+}
+.history-table th,
+.history-table td {
+    white-space: normal;
+    word-break: break-word;
 }
 .history-table th {
     background: var(--bg-card-2);
@@ -669,11 +763,14 @@ textarea.form-control {
 
 /* ── Toast ── */
 .toast {
-    background: #1e2730;
+    background: var(--bg-card);
     border: 1px solid var(--border);
     border-radius: 10px;
     color: var(--text);
     min-width: 280px;
+}
+html[data-theme="dark"] .toast {
+    background: rgba(15, 23, 42, 0.96);
 }
 .toast.toast-success { border-left: 3px solid var(--success); }
 .toast.toast-danger  { border-left: 3px solid var(--danger); }

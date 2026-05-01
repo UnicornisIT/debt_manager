@@ -14,7 +14,7 @@ echo "Устанавливаем зависимости..."
 pip install -r requirements.txt
 
 echo "Применяем миграции базы данных..."
-export FLASK_APP=app.py
+export FLASK_APP=run.py
 python - <<'PY'
 from app import app
 from extensions import db

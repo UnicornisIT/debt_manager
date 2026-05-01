@@ -34,6 +34,17 @@
                 </div>
                 {% endif %}
                 
+                {% if test_login_enabled %}
+                <div class="mt-4 p-3 border rounded bg-light text-start">
+                    <h5 class="mb-3">Тестовый доступ</h5>
+                    <p class="text-muted small mb-3">Вход без Telegram для локального тестирования.</p>
+                    <a href="{{ url_for('test_login') }}" class="btn btn-success btn-lg w-100 d-flex align-items-center justify-content-center gap-2">
+                        <i class="bi bi-person-badge-fill"></i>
+                        Войти как тестовый пользователь
+                    </a>
+                </div>
+                {% endif %}
+
                 {% if admin_login_enabled %}
                 <div class="mt-4">
                     <a href="{{ url_for('admin_login') }}" class="btn btn-outline-primary btn-lg w-100 d-flex align-items-center justify-content-center gap-2">

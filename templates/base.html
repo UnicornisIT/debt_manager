@@ -43,6 +43,11 @@
                     </a>
                 </li>
                 <li class="nav-item">
+                    <a class="nav-link {% if request.path == '/mortgages' %}active{% endif %}" href="/mortgages">
+                        <i class="bi bi-bank2 me-1"></i>Ипотека
+                    </a>
+                </li>
+                <li class="nav-item">
                     <a class="nav-link {% if request.path == '/finance' %}active{% endif %}" href="/finance">
                         <i class="bi bi-info-circle me-1"></i>Информация о финансах
                     </a>
@@ -67,6 +72,17 @@
                     </button>
                 </li>
                 {% endif %}
+                {% if not current_user.is_authenticated and admin_login_enabled %}
+                <li class="nav-item ms-2">
+                    <a class="btn btn-outline-primary btn-sm d-flex align-items-center gap-1" href="{{ url_for('admin_login') }}">
+                        <i class="bi bi-shield-lock-fill"></i>
+                        Админ-панель
+                    </a>
+                </li>
+                {% endif %}
+                <li class="nav-item ms-2">
+                    <button id="themeToggleBtn" class="btn btn-outline-secondary btn-sm" type="button" aria-label="Переключить тему"></button>
+                </li>
                 <li class="nav-item ms-2">
                     {% if current_user.is_authenticated %}
                     <span class="nav-link disabled pe-0">{{ current_user.first_name or current_user.username or 'Пользователь' }}</span>
@@ -113,8 +129,8 @@
                 <div id="debtFormError" class="alert alert-danger d-none"></div>
                 <div class="row g-3">
                     <div class="col-md-6">
-                        <label class="form-label">Банк <span class="text-danger">*</span></label>
-                        <input type="text" class="form-control" id="f_bank_name" list="bankOptions" placeholder="Тинькофф, Сбербанк...">
+                        <label class="form-label"><span class="required-indicator">*</span>Банк</label>
+                        <input type="text" required class="form-control" id="f_bank_name" list="bankOptions" placeholder="Тинькофф, Сбербанк...">
                         <datalist id="bankOptions">
                             {% for bank in bank_options %}
                                 <option value="{{ bank }}"></option>
@@ -122,24 +138,25 @@
                         </datalist>
                     </div>
                     <div class="col-md-6">
-                        <label class="form-label">Тип долга <span class="text-danger">*</span></label>
-                        <select class="form-select" id="f_debt_type">
+                        <label class="form-label"><span class="required-indicator">*</span>Тип долга</label>
+                        <select required class="form-select" id="f_debt_type">
                             <option value="">— выберите —</option>
                             <option value="credit_card">Кредитная карта</option>
                             <option value="split">Сплит / Рассрочка</option>
+                            <option value="mortgage">Ипотека</option>
                         </select>
                     </div>
                     <div class="col-12">
-                        <label class="form-label">Название продукта/карты <span class="text-danger">*</span></label>
-                        <input type="text" class="form-control" id="f_product_name" placeholder="Тинькофф Платинум, СберСплит...">
+                        <label class="form-label"><span class="required-indicator">*</span>Название продукта/карты</label>
+                        <input type="text" required class="form-control" id="f_product_name" placeholder="Тинькофф Платинум, СберСплит...">
                     </div>
                     <div class="col-md-6">
-                        <label class="form-label">Общая сумма долга (₽) <span class="text-danger">*</span></label>
-                        <input type="text" inputmode="decimal" class="form-control number-format" id="f_total_amount" placeholder="0 000,00">
+                        <label class="form-label"><span class="required-indicator">*</span>Общая сумма долга (₽)</label>
+                        <input type="text" required inputmode="decimal" class="form-control number-format" id="f_total_amount" placeholder="0 000,00">
                     </div>
                     <div class="col-md-6">
-                        <label class="form-label">Текущий остаток (₽) <span class="text-danger">*</span></label>
-                        <input type="text" inputmode="decimal" class="form-control number-format" id="f_remaining_amount" placeholder="0 000,00">
+                        <label class="form-label"><span class="required-indicator">*</span>Текущий остаток (₽)</label>
+                        <input type="text" required inputmode="decimal" class="form-control number-format" id="f_remaining_amount" placeholder="0 000,00">
                     </div>
                     <div class="col-md-6">
                         <label class="form-label">Минимальный платеж (₽)</label>
@@ -160,6 +177,7 @@
                 </div>
             </div>
             <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" onclick="fillDebtSampleData()">Заполнить тестовые данные</button>
                 <button type="button" class="btn btn-ghost" data-bs-dismiss="modal">Отмена</button>
                 <button type="button" class="btn btn-primary" id="debtSaveBtn" onclick="saveDebt()">
                     <i class="bi bi-check-lg me-1"></i>Сохранить
@@ -252,6 +270,21 @@
 
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
 <script src="{{ url_for('static', filename='js/app.js') }}"></script>
+<script>
+    document.addEventListener('DOMContentLoaded', function () {
+        const params = new URLSearchParams(window.location.search);
+        const loginMode = params.get('login_mode');
+        if (loginMode === 'local-test') {
+            const toastEl = document.getElementById('mainToast');
+            const toastMessage = document.getElementById('toastMessage');
+            if (toastEl && toastMessage) {
+                toastMessage.textContent = 'Вы вошли как локальный тестовый пользователь (без базы данных).';
+                const toast = new bootstrap.Toast(toastEl);
+                toast.show();
+            }
+        }
+    });
+</script>
 {% block extra_js %}{% endblock %}
 </body>
 </html>

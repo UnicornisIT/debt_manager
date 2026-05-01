@@ -1,0 +1,164 @@
+{% extends 'base.html' %}
+{% block title %}Ипотечные кредиты — Менеджер долгов{% endblock %}
+
+{% block content %}
+<div class="d-flex align-items-center justify-content-between gap-3 mb-4">
+    <div>
+        <h1 class="page-title mb-1"><i class="bi bi-bank2 text-primary me-2"></i>Ипотечные кредиты</h1>
+        <p class="text-muted mb-0">Отдельная страница для ипотек и крупных долгов.</p>
+    </div>
+    <a class="btn btn-outline-secondary" href="/">
+        <i class="bi bi-arrow-left me-1"></i>Вернуться на дашборд
+    </a>
+</div>
+
+<div class="row g-3 mb-4">
+    <div class="col-12 col-md-4">
+        <div class="summary-card">
+            <div class="summary-icon"><i class="bi bi-bank2"></i></div>
+            <div class="summary-value">{{ active_count }}</div>
+            <div class="summary-label">Активных ипотек</div>
+        </div>
+    </div>
+    <div class="col-12 col-md-4">
+        <div class="summary-card summary-card--danger">
+            <div class="summary-icon"><i class="bi bi-cash-stack"></i></div>
+            <div class="summary-value">{{ total_remaining|money }}</div>
+            <div class="summary-label">Общий остаток по ипотеке</div>
+        </div>
+    </div>
+    <div class="col-12 col-md-4">
+        <div class="summary-card summary-card--muted">
+            <div class="summary-icon"><i class="bi bi-bar-chart-line"></i></div>
+            {% if total_original > 0 %}
+            <div class="summary-value">{{ '{:.0f}'.format((1 - total_remaining / total_original) * 100) }}%</div>
+            {% else %}
+            <div class="summary-value">—</div>
+            {% endif %}
+            <div class="summary-label">Погашено</div>
+        </div>
+    </div>
+</div>
+
+{% if debts %}
+<div class="row g-4" id="debtsGrid">
+    {% for debt in debts %}
+    {% set days = (debt.next_payment_date - today).days if debt.next_payment_date else None %}
+    {% set paid_pct = ((1 - debt.remaining_amount / debt.total_amount) * 100) | round(1) if debt.total_amount > 0 else 100 %}
+    <div class="col-12 col-md-6 col-xl-4">
+        <div class="debt-card
+            {% if days is not none %}
+                {% if days < 0 %}debt-card--overdue
+                {% elif days <= 3 %}debt-card--urgent
+                {% elif days <= 7 %}debt-card--warning
+                {% else %}debt-card--ok{% endif %}
+            {% else %}debt-card--ok{% endif %}
+        " data-id="{{ debt.id }}">
+
+            <div class="debt-card__header">
+                <div>
+                    <div class="debt-card__bank">{{ debt.bank_name }}</div>
+                    <div class="debt-card__product">{{ debt.product_name }}</div>
+                </div>
+                <div class="debt-card__badge">
+                    <span class="badge-type badge-type--mortgage"><i class="bi bi-bank2"></i> Ипотека</span>
+                </div>
+            </div>
+
+            <div class="debt-card__progress-wrap">
+                <div class="debt-card__progress-bar" style="width: {{ paid_pct }}%"></div>
+            </div>
+            <div class="debt-card__progress-label">
+                <span>Погашено {{ paid_pct }}%</span>
+                <span>{{ debt.remaining_amount|money }} осталось</span>
+            </div>
+
+            <div class="debt-card__amounts">
+                <div class="debt-card__amount-main">
+                    {{ debt.remaining_amount|money }}
+                </div>
+                <div class="debt-card__amount-total">
+                    из {{ debt.total_amount|money }}
+                </div>
+            </div>
+
+            <div class="debt-card__details">
+                <div class="debt-card__detail">
+                    <span class="detail-label"><i class="bi bi-calendar3"></i> Следующий платеж</span>
+                    <span class="detail-value{% if days is not none %}{% if days < 0 %} text-danger fw-semibold{% elif days <= 3 %} text-orange fw-semibold{% elif days <= 7 %} text-warning-strong{% endif %}{% endif %}">
+                        {% if debt.next_payment_date %}
+                            {{ debt.next_payment_date.strftime('%d.%m.%Y') }}
+                            {% if days is not none %}
+                                {% if days < 0 %}
+                                    <span class="badge bg-danger ms-1">просрочен</span>
+                                {% elif days == 0 %}
+                                    <span class="badge bg-danger ms-1">сегодня</span>
+                                {% elif days <= 3 %}
+                                    <span class="badge bg-warning text-dark ms-1">{{ days }} дн.</span>
+                                {% endif %}
+                            {% endif %}
+                        {% else %}
+                            —
+                        {% endif %}
+                    </span>
+                </div>
+                <div class="debt-card__detail">
+                    <span class="detail-label"><i class="bi bi-arrow-repeat"></i> Мин. платеж</span>
+                    <span class="detail-value">{% if debt.minimum_payment %}{{ debt.minimum_payment|money }}{% else %}—{% endif %}</span>
+                </div>
+                {% if debt.interest_rate %}
+                <div class="debt-card__detail">
+                    <span class="detail-label"><i class="bi bi-percent"></i> Ставка</span>
+                    <span class="detail-value">{{ debt.interest_rate }}% год.</span>
+                </div>
+                {% endif %}
+                {% if debt.comment %}
+                <div class="debt-card__comment">
+                    <i class="bi bi-chat-left-text"></i> {{ debt.comment }}
+                </div>
+                {% endif %}
+            </div>
+
+            <div class="debt-card__actions">
+                <div class="debt-card__actions-left">
+                    <button class="btn btn-action btn-action--pay" onclick="openPaymentModal({{ debt.id }})">
+                        <i class="bi bi-cash"></i> Платеж
+                    </button>
+                    {% if debt.next_payment_date and debt.next_payment_date < today and debt.interest_rate %}
+                    <button class="btn btn-action btn-action--info btn-action--outline" onclick="window.location.href='/debts/{{ debt.id }}/overdue'" title="О просрочке">
+                        <i class="bi bi-info-circle"></i> О просрочке
+                    </button>
+                    {% endif %}
+                </div>
+                <div class="debt-card__actions-right">
+                    <button class="btn btn-action btn-action--edit" onclick="openEditModal({{ debt.id }})">
+                        <i class="bi bi-pencil"></i>
+                    </button>
+                    <button class="btn btn-action btn-action--calendar"
+                        onclick="openGoogleCalendar({{ debt.id }}, '{{ debt.bank_name }}', '{{ debt.product_name }}', '{{ debt.next_payment_date.strftime('%Y-%m-%d') if debt.next_payment_date else '' }}', {{ debt.minimum_payment or 0 }}, {{ debt.remaining_amount }})"
+                        title="Добавить в Google Calendar">
+                        <i class="bi bi-calendar-plus"></i>
+                    </button>
+                    <button class="btn btn-action btn-action--history" onclick="openHistoryModal({{ debt.id }}, '{{ debt.bank_name }} — {{ debt.product_name }}')" title="История платежей">
+                        <i class="bi bi-clock-history"></i>
+                    </button>
+                    <button class="btn btn-action btn-action--archive" onclick="archiveDebt({{ debt.id }})" title="В архив">
+                        <i class="bi bi-archive"></i>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endfor %}
+</div>
+{% else %}
+<div class="empty-state mt-5">
+    <div class="empty-state__icon">🏡</div>
+    <h3>Нет ипотечных кредитов</h3>
+    <p class="text-muted">Добавьте ипотеку через кнопку «Добавить долг».</p>
+    <a href="/" class="btn btn-primary">
+        <i class="bi bi-arrow-left me-2"></i>Назад в дашборд
+    </a>
+</div>
+{% endif %}
+{% endblock %}

@@ -31,71 +31,145 @@
     </div>
 </form>
 
-<div class="summary-bar mb-4">
-    <div class="row g-3">
-        <div class="col-6 col-md-3">
-            <div class="summary-card">
-                <div class="summary-icon"><i class="bi bi-credit-card-2-front"></i></div>
-                <div class="summary-value">{{ active_count }}</div>
-                <div class="summary-label">Активных долгов</div>
+<div class="card mb-4">
+    <div class="card-body">
+        <div class="row g-3">
+            <div class="col-6 col-md-3">
+                <div class="summary-card h-100">
+                    <div class="summary-icon"><i class="bi bi-credit-card-2-front"></i></div>
+                    <div class="summary-value">{{ active_count }}</div>
+                    <div class="summary-label">Активных долгов</div>
+                </div>
+            </div>
+            <div class="col-6 col-md-3">
+                <div class="summary-card summary-card--danger h-100">
+                    <div class="summary-icon"><i class="bi bi-cash-stack"></i></div>
+                    <div class="summary-value">{{ total_remaining|money }}</div>
+                    <div class="summary-label">Общий остаток</div>
+                </div>
+            </div>
+            <div class="col-6 col-md-3">
+                <div class="summary-card summary-card--muted h-100">
+                    <div class="summary-icon"><i class="bi bi-bar-chart-line"></i></div>
+                    {% if total_original > 0 %}
+                    <div class="summary-value">{{ '{:.0f}'.format((1 - total_remaining / total_original) * 100) }}%</div>
+                    {% else %}
+                    <div class="summary-value">—</div>
+                    {% endif %}
+                    <div class="summary-label">Погашено в целом</div>
+                </div>
+            </div>
+            <div class="col-6 col-md-3">
+                <div class="summary-card {% if nearest_debt %}summary-card--warning{% else %}summary-card--muted{% endif %} h-100">
+                    <div class="summary-icon"><i class="bi bi-calendar-event"></i></div>
+                    {% if nearest_debt %}
+                    <div class="summary-value">{{ nearest_debt.next_payment_date.strftime('%d.%m') }}</div>
+                    <div class="summary-label">Ближайший платеж</div>
+                    {% else %}
+                    <div class="summary-value">—</div>
+                    <div class="summary-label">Нет платежей</div>
+                    {% endif %}
+                </div>
             </div>
         </div>
-        <div class="col-6 col-md-3">
-            <div class="summary-card summary-card--danger">
-                <div class="summary-icon"><i class="bi bi-cash-stack"></i></div>
-                <div class="summary-value">{{ total_remaining|money }}</div>
-                <div class="summary-label">Общий остаток</div>
+        <div class="row g-3 mt-3">
+            <div class="col-12 col-md-3">
+                <div class="summary-card summary-card--ok h-100">
+                    <div class="summary-icon"><i class="bi bi-wallet2"></i></div>
+                    <div class="summary-value">{{ total_incomes|money }}</div>
+                    <div class="summary-label">Доходы за месяц</div>
+                </div>
             </div>
-        </div>
-        <div class="col-6 col-md-3">
-            <div class="summary-card summary-card--muted">
-                <div class="summary-icon"><i class="bi bi-bar-chart-line"></i></div>
-                {% if total_original > 0 %}
-                <div class="summary-value">{{ '{:.0f}'.format((1 - total_remaining / total_original) * 100) }}%</div>
-                {% else %}
-                <div class="summary-value">—</div>
-                {% endif %}
-                <div class="summary-label">Погашено в целом</div>
+            <div class="col-12 col-md-3">
+                <div class="summary-card summary-card--danger h-100">
+                    <div class="summary-icon"><i class="bi bi-wallet2"></i></div>
+                    <div class="summary-value">{{ total_expenses|money }}</div>
+                    <div class="summary-label">Расходы за месяц</div>
+                </div>
             </div>
-        </div>
-        <div class="col-6 col-md-3">
-            <div class="summary-card {% if nearest_debt %}summary-card--warning{% else %}summary-card--muted{% endif %}">
-                <div class="summary-icon"><i class="bi bi-calendar-event"></i></div>
-                {% if nearest_debt %}
-                <div class="summary-value">{{ nearest_debt.next_payment_date.strftime('%d.%m') }}</div>
-                <div class="summary-label">Ближайший платеж</div>
-                {% else %}
-                <div class="summary-value">—</div>
-                <div class="summary-label">Нет платежей</div>
-                {% endif %}
+            <div class="col-12 col-md-3">
+                <div class="summary-card summary-card--warning h-100">
+                    <div class="summary-icon"><i class="bi bi-bank2"></i></div>
+                    <div class="summary-value">{{ total_payments|money }}</div>
+                    <div class="summary-label">Платежи по долгам</div>
+                </div>
+            </div>
+            <div class="col-12 col-md-3">
+                <div class="summary-card summary-card--warning h-100">
+                    <div class="summary-icon"><i class="bi bi-percent"></i></div>
+                    <div class="summary-value">{{ total_mortgage_interest|money }}</div>
+                    <div class="summary-label">Начислено процентов за месяц</div>
+                </div>
             </div>
         </div>
     </div>
 </div>
 
-<div class="row g-3 mb-4">
-    <div class="col-12 col-md-4">
-        <div class="summary-card summary-card--ok h-100">
-            <div class="summary-icon"><i class="bi bi-wallet2"></i></div>
-            <div class="summary-value">{{ total_incomes|money }}</div>
-            <div class="summary-label">Доходы за месяц</div>
+{% if mortgage_debts %}
+<div class="card mb-4">
+    <div class="card-body">
+        <div class="d-flex flex-column flex-md-row align-items-center justify-content-start gap-3 mb-4">
+            <div>
+                <h5 class="card-title mb-1">Ипотека</h5>
+                <p class="text-muted mb-0">Все ипотечные задолженности и начисленные проценты за месяц.</p>
+            </div>
+            <div class="d-flex flex-row flex-nowrap gap-3 align-items-center mortgage-summary-row">
+                <div class="summary-card summary-card--info mortgage-summary-card mb-0">
+                    <div class="summary-icon"><i class="bi bi-bank2"></i></div>
+                    <div class="summary-value">{{ mortgage_count }}</div>
+                    <div class="summary-label">Ипотек в портфеле</div>
+                </div>
+                <div class="summary-card summary-card--danger mortgage-summary-card mb-0">
+                    <div class="summary-icon"><i class="bi bi-house-fill"></i></div>
+                    <div class="summary-value">{{ total_mortgage_remaining|money }}</div>
+                    <div class="summary-label">Остаток по ипотеке</div>
+                </div>
+            </div>
         </div>
-    </div>
-    <div class="col-12 col-md-4">
-        <div class="summary-card summary-card--danger h-100">
-            <div class="summary-icon"><i class="bi bi-wallet2"></i></div>
-            <div class="summary-value">{{ total_expenses|money }}</div>
-            <div class="summary-label">Расходы за месяц</div>
-        </div>
-    </div>
-    <div class="col-12 col-md-4">
-        <div class="summary-card summary-card--warning h-100">
-            <div class="summary-icon"><i class="bi bi-bank2"></i></div>
-            <div class="summary-value">{{ total_payments|money }}</div>
-            <div class="summary-label">Платежи по долгам</div>
+        <div class="table-responsive">
+            <table class="table table-borderless align-middle mb-0">
+                <thead>
+                    <tr>
+                        <th>Банк / продукт</th>
+                        <th>Остаток</th>
+                        <th>Ставка</th>
+                        <th>Платёж</th>
+                        <th>Процентов мес.</th>
+                        <th>След. платеж</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for debt in mortgage_debts %}
+                    <tr>
+                        <td>
+                            <div class="fw-semibold">{{ debt.bank_name }}</div>
+                            <div class="text-muted small">{{ debt.product_name }}</div>
+                        </td>
+                        <td>{{ debt.remaining_amount|money }}</td>
+                        <td>{{ debt.interest_rate if debt.interest_rate is not none else '—' }}%</td>
+                        <td>{{ debt.minimum_payment|money }}</td>
+                        <td>
+                            {% if debt.interest_rate %}
+                            {{ (debt.remaining_amount * debt.interest_rate / 12 / 100)|round(2)|money }}
+                            {% else %}
+                            —
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% if debt.next_payment_date %}
+                            {{ debt.next_payment_date.strftime('%d.%m.%Y') }}
+                            {% else %}
+                            —
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
         </div>
     </div>
 </div>
+{% endif %}
 
 <div class="row g-4 mb-4">
     <div class="col-12 col-md-6">

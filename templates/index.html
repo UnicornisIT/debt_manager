@@ -121,6 +121,9 @@
         <button type="button" class="btn btn-filter" data-type="split">
             <i class="bi bi-scissors me-1"></i>Сплиты
         </button>
+        <button type="button" class="btn btn-filter" data-type="mortgage">
+            <i class="bi bi-bank2 me-1"></i>Ипотека
+        </button>
     </div>
     <select class="form-select w-auto" id="sortSelect">
         <option value="date">По дате платежа</option>
@@ -128,6 +131,10 @@
         <option value="bank">По банку</option>
     </select>
 </div>
+
+{% if current_user.is_local_test_user %}
+<div class="alert alert-info">Вы находитесь в локальном тестовом режиме. Список долгов показан для демонстрации, кнопки действий отключены.</div>
+{% endif %}
 
 <!-- ── Список карточек ── -->
 <div class="row g-4" id="debtsGrid">
@@ -158,9 +165,11 @@
                 <div class="debt-card__badge">
                     {% if debt.debt_type == 'credit_card' %}
                     <span class="badge-type badge-type--card"><i class="bi bi-credit-card"></i> Карта</span>
-                    {% else %}
+                {% elif debt.debt_type == 'mortgage' %}
+                    <span class="badge-type badge-type--mortgage"><i class="bi bi-bank2"></i> Ипотека</span>
+                {% else %}
                     <span class="badge-type badge-type--split"><i class="bi bi-scissors"></i> Сплит</span>
-                    {% endif %}
+                {% endif %}
                 </div>
             </div>
 
@@ -229,23 +238,37 @@
 
             <!-- Кнопки действий -->
             <div class="debt-card__actions">
-                <button class="btn btn-action btn-action--pay" onclick="openPaymentModal({{ debt.id }})">
-                    <i class="bi bi-cash"></i> Платеж
-                </button>
-                <button class="btn btn-action btn-action--edit" onclick="openEditModal({{ debt.id }})">
-                    <i class="bi bi-pencil"></i>
-                </button>
-                <button class="btn btn-action btn-action--calendar"
-                    onclick="openGoogleCalendar({{ debt.id }}, '{{ debt.bank_name }}', '{{ debt.product_name }}', '{{ debt.next_payment_date.strftime('%Y-%m-%d') if debt.next_payment_date else '' }}', {{ debt.minimum_payment or 0 }}, {{ debt.remaining_amount }})"
-                    title="Добавить в Google Calendar">
-                    <i class="bi bi-calendar-plus"></i>
-                </button>
-                <button class="btn btn-action btn-action--history" onclick="openHistoryModal({{ debt.id }}, '{{ debt.bank_name }} — {{ debt.product_name }}')" title="История платежей">
-                    <i class="bi bi-clock-history"></i>
-                </button>
-                <button class="btn btn-action btn-action--archive" onclick="archiveDebt({{ debt.id }})" title="В архив">
-                    <i class="bi bi-archive"></i>
-                </button>
+                <div class="debt-card__actions-left">
+                    <button class="btn btn-action btn-action--pay" onclick="openPaymentModal({{ debt.id }})">
+                        <i class="bi bi-cash"></i> Платеж
+                    </button>
+                    {% if debt.debt_type == 'mortgage' %}
+                    <button class="btn btn-action btn-action--info btn-action--outline" onclick="window.location.href='/mortgages'" title="Перейти на ипотеку">
+                        <i class="bi bi-bank2"></i> Ипотека
+                    </button>
+                    {% endif %}
+                    {% if debt.debt_type == 'mortgage' and days is not none and days < 0 %}
+                    <button class="btn btn-action btn-action--info btn-action--outline" onclick="window.location.href='/debts/{{ debt.id }}/overdue'" title="О просрочке">
+                        <i class="bi bi-info-circle"></i> О просрочке
+                    </button>
+                    {% endif %}
+                </div>
+                <div class="debt-card__actions-right">
+                    <button class="btn btn-action btn-action--edit" onclick="openEditModal({{ debt.id }})">
+                        <i class="bi bi-pencil"></i>
+                    </button>
+                    <button class="btn btn-action btn-action--calendar"
+                        onclick="openGoogleCalendar({{ debt.id }}, '{{ debt.bank_name }}', '{{ debt.product_name }}', '{{ debt.next_payment_date.strftime('%Y-%m-%d') if debt.next_payment_date else '' }}', {{ debt.minimum_payment or 0 }}, {{ debt.remaining_amount }})"
+                        title="Добавить в Google Calendar">
+                        <i class="bi bi-calendar-plus"></i>
+                    </button>
+                    <button class="btn btn-action btn-action--history" onclick="openHistoryModal({{ debt.id }}, '{{ debt.bank_name }} — {{ debt.product_name }}')" title="История платежей">
+                        <i class="bi bi-clock-history"></i>
+                    </button>
+                    <button class="btn btn-action btn-action--archive" onclick="archiveDebt({{ debt.id }})" title="В архив">
+                        <i class="bi bi-archive"></i>
+                    </button>
+                </div>
             </div>
         </div>
     </div>

@@ -9,6 +9,12 @@ class Config:
     TELEGRAM_BOT_USERNAME = os.environ.get('TELEGRAM_BOT_USERNAME', '')
     ADMIN_LOGIN_ENABLED = os.environ.get('ADMIN_LOGIN_ENABLED', 'false').lower() in ('1', 'true', 'yes', 'on')
     ADMIN_PASSWORD = os.environ.get('ADMIN_PASSWORD', '')
+    TEST_USER_ENABLED = os.environ.get('TEST_USER_ENABLED', 'false').lower() in ('1', 'true', 'yes', 'on')
+    TEST_USER_TELEGRAM_ID = int(os.environ.get('TEST_USER_TELEGRAM_ID', '-999999999999'))
+    TEST_USER_USERNAME = os.environ.get('TEST_USER_USERNAME', 'testuser')
+    TEST_USER_FIRST_NAME = os.environ.get('TEST_USER_FIRST_NAME', 'Тестовый')
+    TEST_USER_LAST_NAME = os.environ.get('TEST_USER_LAST_NAME', 'Пользователь')
+    TEST_USER_ROLE = os.environ.get('TEST_USER_ROLE', 'user')
     
     DB_HOST = os.environ.get('DB_HOST', 'localhost')
     DB_PORT = os.environ.get('DB_PORT', '3306')
