@@ -1,16 +1,17 @@
-"""Add mortgage value to debt_type enum
+"""Ensure debt_type enum supports mortgage
 
-Revision ID: 20260502_mortgage
-Revises: 73459c8513a1
-Create Date: 2026-05-02 00:00:00.000000
+Revision ID: 20260503_debt_type
+Revises: 20260502_log_ip_ua
+Create Date: 2026-05-03 00:00:00.000000
 """
 
 from alembic import op
 import sqlalchemy as sa
 
+
 # revision identifiers, used by Alembic.
-revision = '20260502_mortgage'
-down_revision = '73459c8513a1'
+revision = '20260503_debt_type'
+down_revision = '20260502_log_ip_ua'
 branch_labels = None
 depends_on = None
 
